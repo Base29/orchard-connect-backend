@@ -23,6 +23,23 @@ class Listing extends Model
         'status',
     ];
 
+    /**
+     * Boot the model and register status update observer.
+     */
+    protected static function booted()
+    {
+        static::updated(function ($listing) {
+            if ($listing->wasChanged('status')) {
+                event(new \App\Events\ListingStatusUpdated(
+                    $listing->id,
+                    $listing->status,
+                    $listing->title,
+                    $listing->user_id
+                ));
+            }
+        });
+    }
+
     protected $casts = [
         'images' => 'array',
         'price' => 'decimal:2',

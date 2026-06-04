@@ -18,6 +18,12 @@ class DirectoryCategoryResource extends Resource
 {
     protected static ?string $model = DirectoryCategory::class;
 
+    protected static ?string $navigationLabel = 'Business Directory Categories';
+
+    protected static ?string $modelLabel = 'Business Directory Category';
+
+    protected static ?string $pluralModelLabel = 'Business Directory Categories';
+
     protected static \UnitEnum|string|null $navigationGroup = 'Marketplace & Business';
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBookmark;

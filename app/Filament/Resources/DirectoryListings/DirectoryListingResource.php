@@ -18,6 +18,12 @@ class DirectoryListingResource extends Resource
 {
     protected static ?string $model = DirectoryListing::class;
 
+    protected static ?string $navigationLabel = 'Business Directory Listings';
+
+    protected static ?string $modelLabel = 'Business Directory Listing';
+
+    protected static ?string $pluralModelLabel = 'Business Directory Listings';
+
     protected static \UnitEnum|string|null $navigationGroup = 'Marketplace & Business';
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedBuildingOffice2;

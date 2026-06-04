@@ -10,6 +10,7 @@ class EditListing extends EditRecord
 {
     protected static string $resource = ListingResource::class;
 
+
     protected function getHeaderActions(): array
     {
         return [

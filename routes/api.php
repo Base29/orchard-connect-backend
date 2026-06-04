@@ -144,7 +144,7 @@ Route::middleware('auth:sanctum')->group(function () {
 
         // 2. Validate request parameters
         $validated = $request->validate([
-            'phase' => 'required|string|in:Phase 1,Phase 2,Central',
+            'phase' => 'required|string|in:Phase 1,Phase 2,Phase 3,Phase 4',
             'block' => 'required|string|max:50',
             'house_number' => 'required|string|max:100',
             'street_number' => 'nullable|string|max:100',
@@ -551,11 +551,63 @@ Route::middleware('auth:sanctum')->group(function () {
 
     // Local Directory
     Route::get('/directory', function () {
-        $categories = \App\Models\DirectoryCategory::with(['listings' => function ($query) {
-            $query->where('is_verified', true);
+        $isVerified = \Illuminate\Support\Facades\DB::connection()->getDriverName() === 'pgsql' ? 'true' : true;
+        $categories = \App\Models\DirectoryCategory::with(['listings' => function ($query) use ($isVerified) {
+            $query->where('is_verified', $isVerified)
+                ->withCount('reviews')
+                ->withAvg('reviews', 'rating');
         }])->get();
 
         return response()->json($categories);
+    });
+
+    // Get single directory listing details
+    Route::get('/directory/{listing}', function (\App\Models\DirectoryListing $listing) {
+        if (!$listing->is_verified) {
+            return response()->json(['message' => 'Business listing not found or not verified.'], 404);
+        }
+        
+        $listing->loadCount('reviews')->loadAvg('reviews', 'rating');
+        $listing->load(['category', 'reviews' => function ($query) {
+            $query->with('user.residentProfile')->latest();
+        }]);
+
+        return response()->json($listing);
+    });
+
+    // Post / update a review for a listing
+    Route::post('/directory/{listing}/reviews', function (Request $request, \App\Models\DirectoryListing $listing) {
+        // Verification guard
+        if (!$request->user()->residentProfile || !$request->user()->residentProfile->is_verified) {
+            return response()->json(['message' => 'Action locked. Residency verification required.'], 403);
+        }
+
+        $validated = $request->validate([
+            'rating' => 'required|integer|min:1|max:5',
+            'comment' => 'nullable|string|max:1000',
+        ]);
+
+        $review = $listing->reviews()->updateOrCreate(
+            ['user_id' => $request->user()->id],
+            [
+                'rating' => $validated['rating'],
+                'comment' => $validated['comment'] ?? null,
+            ]
+        );
+
+        return response()->json($review->load('user.residentProfile'), 201);
+    });
+
+    // Delete review
+    Route::delete('/directory/reviews/{review}', function (Request $request, \App\Models\DirectoryReview $review) {
+        $user = $request->user();
+
+        if ($review->user_id !== $user->id && !$user->hasAnyRole(['Super Admin', 'Marketplace Moderator'])) {
+            return response()->json(['message' => 'Unauthorized. You do not own this review.'], 403);
+        }
+
+        $review->delete();
+        return response()->json(['message' => 'Review deleted successfully.']);
     });
 
     // Community Board Announcements

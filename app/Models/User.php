@@ -124,4 +124,20 @@ class User extends Authenticatable implements FilamentUser
     {
         return $this->hasMany(ListingFlag::class);
     }
+
+    /**
+     * Custom serialization to map admin roles to status for the frontend.
+     */
+    public function toArray()
+    {
+        $array = parent::toArray();
+        try {
+            if ($this->hasAnyRole(['Super Admin', 'Feed Moderator', 'Marketplace Moderator'])) {
+                $array['status'] = 'admin';
+            }
+        } catch (\Throwable $e) {
+            // Fallback in case roles tables are not seeded yet or relation fails
+        }
+        return $array;
+    }
 }

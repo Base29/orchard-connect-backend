@@ -8,23 +8,23 @@ use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class ResidentVerificationStatusUpdated implements ShouldBroadcastNow
+class ListingStatusUpdated implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
+    public string $listingId;
     public string $status;
-    public ?string $rejectionReason;
-    public ?string $rejectionMessage;
+    public string $title;
     public string $userId;
 
     /**
      * Create a new event instance.
      */
-    public function __construct(string $status, ?string $rejectionReason, ?string $rejectionMessage, string $userId)
+    public function __construct(string $listingId, string $status, string $title, string $userId)
     {
+        $this->listingId = $listingId;
         $this->status = $status;
-        $this->rejectionReason = $rejectionReason;
-        $this->rejectionMessage = $rejectionMessage;
+        $this->title = $title;
         $this->userId = $userId;
     }
 
@@ -45,7 +45,7 @@ class ResidentVerificationStatusUpdated implements ShouldBroadcastNow
      */
     public function broadcastAs(): string
     {
-        return 'ResidentVerificationStatusUpdated';
+        return 'ListingStatusUpdated';
     }
 
     /**
@@ -56,9 +56,9 @@ class ResidentVerificationStatusUpdated implements ShouldBroadcastNow
     public function broadcastWith(): array
     {
         return [
+            'listing_id' => $this->listingId,
             'status' => $this->status,
-            'rejection_reason' => $this->rejectionReason,
-            'rejection_message' => $this->rejectionMessage,
+            'title' => $this->title,
         ];
     }
 }

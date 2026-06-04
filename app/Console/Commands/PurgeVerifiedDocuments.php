@@ -30,9 +30,9 @@ class PurgeVerifiedDocuments extends Command
     {
         $this->info('Starting verification document purge...');
  
-        // Fetch profiles that are approved and verified, and have document paths that are not already purged
+        $isVerified = \Illuminate\Support\Facades\DB::connection()->getDriverName() === 'pgsql' ? 'true' : true;
         $profiles = ResidentProfile::where('status', 'approved')
-            ->where('is_verified', true)
+            ->where('is_verified', $isVerified)
             ->whereNotNull('document_path')
             ->where('document_path', '!=', 'purged')
             ->get();

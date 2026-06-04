@@ -33,4 +33,12 @@ class DirectoryListing extends Model
     {
         return $this->belongsTo(DirectoryCategory::class, 'category_id');
     }
+
+    /**
+     * Get all reviews and ratings submitted for this business listing.
+     */
+    public function reviews(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(DirectoryReview::class, 'directory_listing_id');
+    }
 }

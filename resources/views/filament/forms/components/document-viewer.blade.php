@@ -24,8 +24,8 @@
         <div class="border border-neutral-200 dark:border-zinc-800 rounded-xl overflow-hidden bg-neutral-50 dark:bg-zinc-950 p-3 shadow-sm">
             <div class="mb-3 flex items-center justify-between text-xs text-slate-400 dark:text-zinc-500 font-medium">
                 <span class="font-mono truncate max-w-[200px] sm:max-w-xs">{{ basename($state) }}</span>
-                <a href="{{ $url }}" target="_blank" class="text-emerald-500 hover:text-emerald-600 font-semibold flex items-center gap-1.5 transition-colors">
-                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <a href="{{ $url }}" target="_blank" class="text-emerald-500 hover:text-emerald-600 font-semibold flex items-center gap-1.5 transition-colors" style="display: inline-flex; align-items: center; gap: 0.375rem; white-space: nowrap;">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24" style="width: 14px; height: 14px; flex-shrink: 0;" width="14" height="14">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
                     </svg>
                     Open in New Tab
