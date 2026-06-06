@@ -35,4 +35,4 @@ RUN mkdir -p storage/framework/{sessions,views,caches} bootstrap/cache && \
 ENV FRANKENPHP_CONFIG="local_certs"
 ENV SERVER_NAME=":8000"
 
-CMD ["frankenphp", "run-with-env"]
+CMD ["frankenphp", "run"]
