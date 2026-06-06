@@ -1,26 +1,16 @@
-FROM dunglas/frankenphp:1.3-php8.4-alpine
+# Stage 1: Node builder for Vite/Filament assets
+FROM node:20-alpine AS node-builder
+WORKDIR /app
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY . .
+RUN npm run build
 
-# Install system dependencies
-RUN apk add --no-cache \
-    git \
-    curl \
-    libpng-dev \
-    libxml2-dev \
-    zip \
-    unzip \
-    postgresql-dev \
-    libzip-dev \
-    icu-dev \
-    bash
+# Stage 2: Production runner
+FROM dunglas/frankenphp:1.3-php8.4
 
-# Install PHP extensions required for Laravel, Filament, and Reverb
-RUN docker-php-ext-install \
-    pdo_pgsql \
-    pcntl \
-    zip \
-    bcmath \
-    gd \
-    intl
+# Install PHP extensions required for Laravel, Filament, and Reverb using the pre-installed helper
+RUN install-php-extensions pdo_pgsql pcntl zip bcmath gd intl
 
 # Get latest Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
@@ -31,14 +21,11 @@ WORKDIR /app
 # Copy application files
 COPY . .
 
-# Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+# Copy built Vite assets from node-builder
+COPY --from=node-builder /app/public/build ./public/build
 
-# Install Node & Build Vite/Filament assets
-RUN apk add --no-cache nodejs npm && \
-    npm install && \
-    npm run build && \
-    apk del nodejs npm
+# Install PHP dependencies (production only)
+RUN composer install --no-dev --optimize-autoloader --no-interaction
 
 # Set up storage directories permissions
 RUN mkdir -p storage/framework/{sessions,views,caches} bootstrap/cache && \
