@@ -1,4 +1,4 @@
-FROM frankenphp:1.3-php8.4-alpine
+FROM dunglas/frankenphp:1.3-php8.4-alpine
 
 # Install system dependencies
 RUN apk add --no-cache \
