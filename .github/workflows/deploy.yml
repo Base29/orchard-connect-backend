@@ -7,8 +7,8 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  # Image name matches ghcr.io/<owner>/<repo>-backend
-  IMAGE_NAME: ${{ github.repository }}-backend
+  # Image name matches ghcr.io/<owner>/<repo>
+  IMAGE_NAME: ${{ github.repository }}
 
 jobs:
   build:
