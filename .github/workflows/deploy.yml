@@ -88,11 +88,13 @@ jobs:
             # Log in to GHCR
             echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
-            # Pull new backend and reverb images
-            docker compose pull backend reverb
+            # Pull new backend and reverb images sequentially
+            docker compose pull backend
+            docker compose pull reverb
             
-            # Recreate the backend and reverb containers
-            docker compose up -d backend reverb
+            # Recreate the backend and reverb containers sequentially to avoid memory spikes
+            docker compose up -d backend
+            docker compose up -d reverb
             
             # Run post-deployment Laravel commands
             docker compose exec -T backend php artisan migrate --force
