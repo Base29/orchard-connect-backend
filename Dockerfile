@@ -32,7 +32,6 @@ RUN mkdir -p storage/framework/{sessions,views,caches} bootstrap/cache && \
     chown -R www-data:www-data storage bootstrap/cache
 
 # Configure FrankenPHP port and document root
-ENV FRANKENPHP_CONFIG="local_certs"
 ENV SERVER_NAME=":8000"
 
-CMD ["frankenphp", "run"]
+# Use the default CMD from the base image which loads the Caddyfile configuration
