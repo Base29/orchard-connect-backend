@@ -29,7 +29,7 @@ class OAuthController extends Controller
                 ->stateless()
                 ->redirect();
         } catch (\Exception $e) {
-            $frontendUrl = config('app.frontend_url', 'http://localhost:8080');
+            $frontendUrl = $this->getFrontendUrl();
             return redirect($frontendUrl . '/auth/login?error=oauth_failed');
         }
     }
@@ -49,7 +49,7 @@ class OAuthController extends Controller
             // Retrieve user parameters statelessly from OAuth channel
             $socialUser = Socialite::driver($provider)->stateless()->user();
         } catch (\Exception $e) {
-            $frontendUrl = config('app.frontend_url', 'http://orchard.local');
+            $frontendUrl = $this->getFrontendUrl();
             return redirect($frontendUrl . '/auth/login?error=oauth_failed');
         }
 
@@ -91,7 +91,7 @@ class OAuthController extends Controller
         });
 
         if ($user->status !== 'active') {
-            $frontendUrl = config('app.frontend_url', 'http://orchard.local');
+            $frontendUrl = $this->getFrontendUrl();
             return redirect($frontendUrl . '/auth/login?error=account_suspended');
         }
 
@@ -102,7 +102,7 @@ class OAuthController extends Controller
         $profileComplete = $user->residentProfile()->exists();
 
         // Redirect back to frontend OAuth callback intercept route
-        $frontendUrl = config('app.frontend_url', 'http://orchard.local');
+        $frontendUrl = $this->getFrontendUrl();
         $redirectUrl = sprintf(
             '%s/auth/callback?token=%s&profile_complete=%s',
             $frontendUrl,
@@ -111,5 +111,21 @@ class OAuthController extends Controller
         );
 
         return redirect($redirectUrl);
+    }
+
+    /**
+     * Determine the frontend URL dynamically.
+     */
+    protected function getFrontendUrl(): string
+    {
+        $frontendUrl = config('app.frontend_url');
+
+        // If FRONTEND_URL is not configured, or if it points to localhost but the request is accessed
+        // from a different host (like a mobile device on LAN or a demo server domain), resolve it dynamically.
+        if (empty($frontendUrl) || (Str::contains($frontendUrl, 'localhost') && request()->getHost() !== 'localhost')) {
+            return request()->getSchemeAndHttpHost();
+        }
+
+        return $frontendUrl;
     }
 }
