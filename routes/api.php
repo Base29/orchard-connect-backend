@@ -250,7 +250,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
             $likesCount = $post->likes()->count();
 
-            broadcast(new \App\Events\PostLiked($post->id, $likesCount, $request->user()->id, $liked))->toOthers();
+            try {
+                broadcast(new \App\Events\PostLiked($post->id, $likesCount, $request->user()->id, $liked))->toOthers();
+            } catch (\Exception $e) {
+                logger()->error('Broadcasting PostLiked event failed: ' . $e->getMessage());
+            }
 
             return response()->json([
                 'liked' => $liked,
@@ -278,7 +282,11 @@ Route::middleware('auth:sanctum')->group(function () {
 
             $loadedComment = $comment->load('user.residentProfile');
 
-            broadcast(new \App\Events\CommentCreated($loadedComment))->toOthers();
+            try {
+                broadcast(new \App\Events\CommentCreated($loadedComment))->toOthers();
+            } catch (\Exception $e) {
+                logger()->error('Broadcasting CommentCreated event failed: ' . $e->getMessage());
+            }
 
             return response()->json($loadedComment, 201);
         });
