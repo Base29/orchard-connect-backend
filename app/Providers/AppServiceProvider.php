@@ -26,6 +26,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        // Force HTTPS in production
+        if (config('app.env') === 'production') {
+            \Illuminate\Support\Facades\URL::forceScheme('https');
+        }
+
         // Super Admin bypass for Gate checks
         Gate::before(function ($user, $ability) {
             return $user->hasRole('Super Admin') ? true : null;
