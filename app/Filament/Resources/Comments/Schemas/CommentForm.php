@@ -15,8 +15,20 @@ class CommentForm
                 Select::make('post_id')
                     ->relationship('post', 'content')
                     ->label('Post')
-                    ->required()
                     ->searchable()
+                    ->nullable()
+                    ->limit(50),
+                Select::make('listing_id')
+                    ->relationship('listing', 'title')
+                    ->label('Marketplace Listing')
+                    ->searchable()
+                    ->nullable()
+                    ->limit(50),
+                Select::make('news_id')
+                    ->relationship('news', 'title')
+                    ->label('News Article')
+                    ->searchable()
+                    ->nullable()
                     ->limit(50),
                 Select::make('user_id')
                     ->relationship('user', 'name')

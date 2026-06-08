@@ -16,6 +16,7 @@ class Comment extends Model
     protected $fillable = [
         'post_id',
         'listing_id',
+        'news_id',
         'user_id',
         'parent_id',
         'content',
@@ -35,6 +36,14 @@ class Comment extends Model
     public function listing(): BelongsTo
     {
         return $this->belongsTo(Listing::class);
+    }
+
+    /**
+     * Get the associated news article.
+     */
+    public function news(): BelongsTo
+    {
+        return $this->belongsTo(News::class);
     }
 
     /**

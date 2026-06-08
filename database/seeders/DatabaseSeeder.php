@@ -25,6 +25,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             RolesAndPermissionsSeeder::class,
             VerifiedBusinessSeeder::class,
+            PhoneDirectorySeeder::class,
         ]);
     }
 }

@@ -3,14 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Services\SupabaseStorageService;
+use App\Services\S3PrivateStorageService;
 use Illuminate\Http\Request;
 
 class DocumentProxyController extends Controller
 {
-    protected SupabaseStorageService $storage;
+    protected S3PrivateStorageService $storage;
 
-    public function __construct(SupabaseStorageService $storage)
+    public function __construct(S3PrivateStorageService $storage)
     {
         $this->storage = $storage;
     }

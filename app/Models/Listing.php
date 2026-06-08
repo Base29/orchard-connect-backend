@@ -46,6 +46,36 @@ class Listing extends Model
     ];
 
     /**
+     * Accessor to dynamically sign private S3 URLs.
+     */
+    public function getImagesAttribute($value)
+    {
+        if (!$value) {
+            return [];
+        }
+
+        $urls = is_array($value) ? $value : json_decode($value, true);
+        if (!is_array($urls)) {
+            return [];
+        }
+
+        return array_map(function ($url) {
+            if (str_contains($url, 'amazonaws.com')) {
+                $parsed = parse_url($url);
+                $path = ltrim($parsed['path'] ?? '', '/');
+                if ($path) {
+                    try {
+                        return \Illuminate\Support\Facades\Storage::disk('s3')->temporaryUrl($path, now()->addMinutes(30));
+                    } catch (\Exception $e) {
+                        return $url;
+                    }
+                }
+            }
+            return $url;
+        }, $urls);
+    }
+
+    /**
      * Get the associated user who owns this classified listing.
      */
     public function user(): BelongsTo

@@ -22,11 +22,11 @@ class AnnouncementResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedMegaphone;
 
-    protected static ?string $navigationLabel = 'News & Announcements';
+    protected static ?string $navigationLabel = 'Announcements';
 
     protected static ?string $modelLabel = 'Announcement';
 
-    protected static ?string $pluralModelLabel = 'News & Announcements';
+    protected static ?string $pluralModelLabel = 'Announcements';
 
     public static function form(Schema $schema): Schema
     {

@@ -19,6 +19,7 @@ class ResidencyVerificationTest extends TestCase
         parent::setUp();
         // Setup local storage disk fakes
         Storage::fake('local');
+        Storage::fake('s3');
     }
 
     /**
@@ -121,6 +122,103 @@ class ResidencyVerificationTest extends TestCase
     }
 
     /**
+     * Test verified residents can write to discussion feed with up to 3 images.
+     */
+    public function test_verified_residents_can_post_with_images(): void
+    {
+        $user = User::factory()->create();
+        ResidentProfile::create([
+            'user_id' => $user->id,
+            'phase' => 'Phase 1',
+            'block' => 'Block A',
+            'house_number' => '100',
+            'user_type' => 'owner',
+            'is_verified' => true,
+            'status' => 'approved',
+        ]);
+
+        $mediaUrls = [
+            'https://example.com/image1.jpg',
+            'https://example.com/image2.jpg',
+            'https://example.com/image3.jpg',
+        ];
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/posts', [
+                'content' => 'This is a post with images',
+                'media_urls' => $mediaUrls,
+            ]);
+
+        $response->assertStatus(201);
+        $this->assertDatabaseHas('posts', [
+            'user_id' => $user->id,
+            'content' => 'This is a post with images',
+        ]);
+
+        $post = \App\Models\Post::where('user_id', $user->id)->first();
+        $this->assertEquals($mediaUrls, $post->media_urls);
+    }
+
+    /**
+     * Test post creation fails with more than 3 images.
+     */
+    public function test_post_creation_fails_with_more_than_three_images(): void
+    {
+        $user = User::factory()->create();
+        ResidentProfile::create([
+            'user_id' => $user->id,
+            'phase' => 'Phase 1',
+            'block' => 'Block A',
+            'house_number' => '100',
+            'user_type' => 'owner',
+            'is_verified' => true,
+            'status' => 'approved',
+        ]);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/posts', [
+                'content' => 'This has too many images',
+                'media_urls' => [
+                    'https://example.com/image1.jpg',
+                    'https://example.com/image2.jpg',
+                    'https://example.com/image3.jpg',
+                    'https://example.com/image4.jpg',
+                ],
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['media_urls']);
+    }
+
+    /**
+     * Test post creation validates format of image URLs.
+     */
+    public function test_post_creation_validates_image_url_format(): void
+    {
+        $user = User::factory()->create();
+        ResidentProfile::create([
+            'user_id' => $user->id,
+            'phase' => 'Phase 1',
+            'block' => 'Block A',
+            'house_number' => '100',
+            'user_type' => 'owner',
+            'is_verified' => true,
+            'status' => 'approved',
+        ]);
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/posts', [
+                'content' => 'This has invalid urls',
+                'media_urls' => [
+                    'not-a-valid-url',
+                ],
+            ]);
+
+        $response->assertStatus(422)
+            ->assertJsonValidationErrors(['media_urls.0']);
+    }
+
+    /**
      * Test rolling rejections lock the form (3 consecutive rejections in 48h).
      */
     public function test_rolling_rejection_limit_locks_profile_submissions(): void
@@ -188,6 +286,12 @@ class ResidencyVerificationTest extends TestCase
      */
     public function test_user_profile_document_upload_uses_correct_folder_path(): void
     {
+        // Explicitly clear S3 credentials to force local fallback behavior
+        config([
+            'filesystems.disks.s3.key' => null,
+            'filesystems.disks.s3.bucket' => null,
+        ]);
+
         $user = User::factory()->create();
         $file = UploadedFile::fake()->create('my_bill.jpeg', 300, 'image/jpeg');
 
@@ -300,5 +404,39 @@ class ResidencyVerificationTest extends TestCase
 
         // Assert file has been deleted from the private local disk
         Storage::disk('local')->assertMissing($path);
+    }
+
+    /**
+     * Test residency document upload uses S3 when configuration is present.
+     */
+    public function test_user_profile_document_upload_uses_s3_when_configured(): void
+    {
+        config([
+            'filesystems.disks.s3.key' => 'test-key-id',
+            'filesystems.disks.s3.bucket' => 'test-bucket',
+        ]);
+
+        $user = User::factory()->create();
+        $file = UploadedFile::fake()->create('my_bill.jpeg', 300, 'image/jpeg');
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/resident/profile', [
+                'phase' => 'Phase 2',
+                'block' => 'Block B',
+                'house_number' => '99',
+                'user_type' => 'owner',
+                'document' => $file,
+            ]);
+
+        $response->assertStatus(200);
+
+        $profile = ResidentProfile::where('user_id', $user->id)->firstOrFail();
+        
+        // Path should match S3 pattern: s3://documents/{user_id}/bill_{timestamp}.jpeg
+        $this->assertStringStartsWith("s3://documents/{$user->id}/bill_", $profile->document_path);
+        
+        // Assert the file exists on s3 fake disk
+        $cleanS3Path = str_replace('s3://', '', $profile->document_path);
+        Storage::disk('s3')->assertExists($cleanS3Path);
     }
 }

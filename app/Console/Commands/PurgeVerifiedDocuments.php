@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
  
 use App\Models\ResidentProfile;
-use App\Services\SupabaseStorageService;
+use App\Services\S3PrivateStorageService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
  
@@ -21,12 +21,12 @@ class PurgeVerifiedDocuments extends Command
      *
      * @var string
      */
-    protected $description = 'Purge verification documents for already verified residents from Supabase (or local fallback) storage after approval';
+    protected $description = 'Purge verification documents for already verified residents from S3 (or local fallback) storage after approval';
  
     /**
      * Execute the console command.
      */
-    public function handle(SupabaseStorageService $storage)
+    public function handle(S3PrivateStorageService $storage)
     {
         $this->info('Starting verification document purge...');
  

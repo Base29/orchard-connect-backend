@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Posts\Schemas;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\ViewField;
 use Filament\Schemas\Schema;
 
 class PostForm
@@ -36,6 +37,10 @@ class PostForm
                     ->required()
                     ->columnSpanFull()
                     ->rows(4),
+                ViewField::make('media_urls')
+                    ->label('Attached Images')
+                    ->view('filament.forms.components.post-images-viewer')
+                    ->columnSpanFull(),
             ]);
     }
 }

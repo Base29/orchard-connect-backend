@@ -30,9 +30,9 @@ class S3StorageService
         }
  
         try {
-            // Upload to S3 with public visibility
+            // Upload to S3 with private visibility
             Storage::disk('s3')->put($path, file_get_contents($file->getRealPath()), [
-                'visibility' => 'public',
+                'visibility' => 'private',
             ]);
  
             return Storage::disk('s3')->url($path);

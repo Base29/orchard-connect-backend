@@ -153,7 +153,7 @@ Route::middleware('auth:sanctum')->group(function () {
         ]);
 
         // 3. Upload verification document
-        $storage = app(\App\Services\SupabaseStorageService::class);
+        $storage = app(\App\Services\S3PrivateStorageService::class);
         $file = $request->file('document');
         $fileName = 'bill_' . time() . '.' . $file->getClientOriginalExtension();
         $targetPath = "documents/{$user->id}/{$fileName}";
@@ -217,7 +217,8 @@ Route::middleware('auth:sanctum')->group(function () {
 
             $validated = $request->validate([
                 'content' => 'required|string',
-                'media_urls' => 'nullable|array',
+                'media_urls' => 'nullable|array|max:3',
+                'media_urls.*' => 'required|string|url',
             ]);
 
             $post = $request->user()->posts()->create([
@@ -618,14 +619,96 @@ Route::middleware('auth:sanctum')->group(function () {
         return response()->json(['message' => 'Review deleted successfully.']);
     });
 
-    // Community Board Announcements
-    Route::get('/announcements', function () {
-        $announcements = \App\Models\Announcement::where('status', 'published')
-            ->orderBy('pinned', 'desc')
-            ->latest()
-            ->take(10)
+    // Phone Directory
+    Route::get('/phone-directory', function (Request $request) {
+        // Verification guard
+        if (!$request->user()->residentProfile || !$request->user()->residentProfile->is_verified) {
+            return response()->json(['message' => 'Action locked. Residency verification required.'], 403);
+        }
+
+        $contacts = \App\Models\PhoneDirectory::orderBy('category')
+            ->orderBy('order')
+            ->orderBy('name')
             ->get();
 
-        return response()->json($announcements);
+        return response()->json($contacts);
+    });
+
+    // Community Board Announcements
+    Route::get('/announcements', function (Request $request) {
+        $query = \App\Models\Announcement::with('author')
+            ->where('status', 'published')
+            ->orderBy('pinned', 'desc')
+            ->latest();
+
+        if ($request->boolean('paginate')) {
+            return response()->json($query->paginate(15));
+        }
+
+        return response()->json($query->take(10)->get());
+    });
+
+    Route::get('/announcements/{announcement}', function (\App\Models\Announcement $announcement) {
+        if ($announcement->status !== 'published') {
+            return response()->json(['message' => 'Announcement not found.'], 404);
+        }
+        return response()->json($announcement->load('author'));
+    });
+
+    // Orchard News Articles
+    Route::prefix('news')->group(function () {
+        Route::get('/', function (Request $request) {
+            $news = \App\Models\News::with('author')
+                ->withCount('comments')
+                ->where('status', 'published')
+                ->latest()
+                ->paginate(15);
+
+            return response()->json($news);
+        });
+
+        Route::get('/{news}', function (Request $request, \App\Models\News $news) {
+            if ($news->status !== 'published') {
+                return response()->json(['message' => 'News article not found.'], 404);
+            }
+            return response()->json($news->load('author'));
+        });
+
+        Route::get('/{news}/comments', function (Request $request, \App\Models\News $news) {
+            if ($news->status !== 'published') {
+                return response()->json(['message' => 'News article not found.'], 404);
+            }
+
+            $comments = $news->comments()
+                ->with('user.residentProfile')
+                ->oldest()
+                ->get();
+
+            return response()->json($comments);
+        });
+
+        Route::post('/{news}/comments', function (Request $request, \App\Models\News $news) {
+            if ($news->status !== 'published') {
+                return response()->json(['message' => 'News article not found.'], 404);
+            }
+
+            // Verification guard
+            if (!$request->user()->residentProfile || !$request->user()->residentProfile->is_verified) {
+                return response()->json(['message' => 'Action locked. Residency verification required.'], 403);
+            }
+
+            $validated = $request->validate([
+                'content' => 'required|string',
+                'parent_id' => 'nullable|uuid|exists:comments,id',
+            ]);
+
+            $comment = $news->comments()->create([
+                'user_id' => $request->user()->id,
+                'parent_id' => $validated['parent_id'] ?? null,
+                'content' => $validated['content'],
+            ]);
+
+            return response()->json($comment->load('user.residentProfile'), 201);
+        });
     });
 });

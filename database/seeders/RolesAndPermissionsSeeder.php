@@ -91,6 +91,13 @@ class RolesAndPermissionsSeeder extends Seeder
             'create_announcement',
             'update_announcement',
             'delete_announcement',
+
+            // News
+            'view_any_news',
+            'view_news',
+            'create_news',
+            'update_news',
+            'delete_news',
         ];
 
         // Seed permissions in Spatie
@@ -127,6 +134,11 @@ class RolesAndPermissionsSeeder extends Seeder
             'create_announcement',
             'update_announcement',
             'delete_announcement',
+            'view_any_news',
+            'view_news',
+            'create_news',
+            'update_news',
+            'delete_news',
         ]);
 
         // Marketplace Moderator

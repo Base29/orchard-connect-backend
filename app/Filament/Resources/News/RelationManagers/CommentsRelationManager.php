@@ -1,20 +1,38 @@
 <?php
 
-namespace App\Filament\Resources\Comments\Tables;
+namespace App\Filament\Resources\News\RelationManagers;
 
-use Filament\Actions\BulkActionGroup;
-use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\EditAction;
-use Filament\Tables\Columns\TextColumn;
-use Filament\Actions\Action;
-use Filament\Tables\Table;
 use App\Models\ModerationLog;
+use Filament\Actions\Action;
+use Filament\Actions\EditAction;
+use Filament\Forms\Components\Textarea;
+use Filament\Resources\RelationManagers\RelationManager;
+use Filament\Schemas\Schema;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Table;
 
-class CommentsTable
+class CommentsRelationManager extends RelationManager
 {
-    public static function configure(Table $table): Table
+    protected static string $relationship = 'comments';
+
+    protected static ?string $title = 'News Comments';
+
+    public function form(Schema $schema): Schema
+    {
+        return $schema
+            ->components([
+                Textarea::make('content')
+                    ->label('Comment Content')
+                    ->required()
+                    ->rows(3)
+                    ->columnSpanFull(),
+            ]);
+    }
+
+    public function table(Table $table): Table
     {
         return $table
+            ->recordTitleAttribute('content')
             ->columns([
                 TextColumn::make('user.name')
                     ->label('Author')
@@ -22,23 +40,8 @@ class CommentsTable
                     ->sortable(),
                 TextColumn::make('content')
                     ->label('Comment')
-                    ->limit(50)
+                    ->limit(65)
                     ->searchable(),
-                TextColumn::make('post.content')
-                    ->label('Post')
-                    ->limit(30)
-                    ->searchable()
-                    ->placeholder('-'),
-                TextColumn::make('listing.title')
-                    ->label('Listing')
-                    ->limit(30)
-                    ->searchable()
-                    ->placeholder('-'),
-                TextColumn::make('news.title')
-                    ->label('News Headline')
-                    ->limit(30)
-                    ->searchable()
-                    ->placeholder('-'),
                 TextColumn::make('created_at')
                     ->label('Created At')
                     ->dateTime()
@@ -59,7 +62,7 @@ class CommentsTable
                     ->color('danger')
                     ->visible(fn () => auth()->user()->can('moderate_comment'))
                     ->form([
-                        \Filament\Forms\Components\Textarea::make('reason')
+                        Textarea::make('reason')
                             ->label('Reason for Deleting Comment')
                             ->required(),
                     ])
@@ -81,11 +84,6 @@ class CommentsTable
                         // Delete the comment
                         $record->delete();
                     }),
-            ])
-            ->toolbarActions([
-                BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                ]),
             ]);
     }
 }
