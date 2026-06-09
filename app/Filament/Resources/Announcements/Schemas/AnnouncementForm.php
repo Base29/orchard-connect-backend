@@ -6,6 +6,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Toggle;
+use Filament\Forms\Components\FileUpload;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
@@ -40,6 +41,16 @@ class AnnouncementForm
                             ])
                             ->required()
                             ->default('published'),
+                        FileUpload::make('image_path')
+                            ->label('Announcement Image')
+                            ->image()
+                            ->maxFiles(1)
+                            ->disk(empty(config('filesystems.disks.s3.key')) || empty(config('filesystems.disks.s3.bucket')) ? 'public' : 's3')
+                            ->directory(fn () => 'announcements/' . auth()->id())
+                            ->getUploadedFileNameForStorageUsing(function ($file) {
+                                return time() . '_' . uniqid() . '.' . $file->getClientOriginalExtension();
+                            })
+                            ->columnSpanFull(),
                         Toggle::make('pinned')
                             ->label('Pin this notice to top of Community Board?')
                             ->default(false)
