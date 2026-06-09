@@ -18,7 +18,7 @@ class Poll extends Model
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
-            ->logOnly(['title', 'description', 'start_at', 'end_at', 'status'])
+            ->logOnly(['title', 'description', 'start_at', 'end_at', 'status', 'is_anonymous'])
             ->logOnlyDirty()
             ->dontLogEmptyChanges();
     }
@@ -30,11 +30,13 @@ class Poll extends Model
         'start_at',
         'end_at',
         'status',
+        'is_anonymous',
     ];
 
     protected $casts = [
         'start_at' => 'datetime',
         'end_at' => 'datetime',
+        'is_anonymous' => \App\Casts\PostgresSafeBoolean::class,
     ];
 
     /**

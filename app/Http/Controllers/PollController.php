@@ -26,13 +26,22 @@ class PollController extends Controller
         ->latest()
         ->paginate(15);
 
-        // Map polls to include user's voting state
+        // Map polls to include user's voting state and conditional votes details
         $polls->getCollection()->transform(function ($poll) use ($user) {
             $userVote = PollVote::where('poll_id', $poll->id)
                 ->where('user_id', $user->id)
                 ->first();
 
             $poll->user_voted_option_id = $userVote ? $userVote->poll_option_id : null;
+
+            // Load votes with voter details if creator or admin/moderator and poll is not anonymous
+            $isCreator = $poll->user_id === $user->id;
+            $isModerator = $user->hasAnyRole(['Super Admin', 'Feed Moderator']);
+
+            if (($isCreator || $isModerator) && !$poll->is_anonymous) {
+                $poll->load(['votes.user.residentProfile', 'votes.option']);
+            }
+
             return $poll;
         });
 
@@ -72,6 +81,7 @@ class PollController extends Controller
             'end_at' => 'required|date|after:start_at',
             'options' => 'required|array|min:2|max:10',
             'options.*' => 'required|string|max:150',
+            'is_anonymous' => 'nullable|boolean',
         ]);
 
         $poll = DB::transaction(function () use ($user, $validated) {
@@ -82,6 +92,7 @@ class PollController extends Controller
                 'start_at' => $validated['start_at'],
                 'end_at' => $validated['end_at'],
                 'status' => 'active',
+                'is_anonymous' => $validated['is_anonymous'] ?? false,
             ]);
 
             foreach ($validated['options'] as $optionText) {
@@ -93,7 +104,13 @@ class PollController extends Controller
             return $poll;
         });
 
-        return response()->json($poll->load(['options', 'user.residentProfile']), 201);
+        $relations = ['options', 'user.residentProfile'];
+        if (!$poll->is_anonymous && ($poll->user_id === $user->id || $user->hasAnyRole(['Super Admin', 'Feed Moderator']))) {
+            $relations[] = 'votes.user.residentProfile';
+            $relations[] = 'votes.option';
+        }
+
+        return response()->json($poll->load($relations), 201);
     }
 
     /**
@@ -120,6 +137,7 @@ class PollController extends Controller
             'end_at' => 'required|date|after:start_at',
             'options' => 'nullable|array|min:2|max:10',
             'options.*' => 'required|string|max:150',
+            'is_anonymous' => 'nullable|boolean',
         ]);
 
         DB::transaction(function () use ($poll, $validated) {
@@ -128,6 +146,7 @@ class PollController extends Controller
                 'description' => $validated['description'] ?? null,
                 'start_at' => $validated['start_at'],
                 'end_at' => $validated['end_at'],
+                'is_anonymous' => $validated['is_anonymous'] ?? $poll->is_anonymous,
             ]);
 
             // Only update options if they were provided and no votes have been cast yet
@@ -141,7 +160,13 @@ class PollController extends Controller
             }
         });
 
-        return response()->json($poll->load(['options', 'user.residentProfile']));
+        $relations = ['options', 'user.residentProfile'];
+        if (!$poll->is_anonymous && ($poll->user_id === $user->id || $user->hasAnyRole(['Super Admin', 'Feed Moderator']))) {
+            $relations[] = 'votes.user.residentProfile';
+            $relations[] = 'votes.option';
+        }
+
+        return response()->json($poll->load($relations));
     }
 
     /**
@@ -198,6 +223,13 @@ class PollController extends Controller
 
         $updatedPoll->user_voted_option_id = $validated['poll_option_id'];
 
+        // Conditionally load votes
+        $isCreator = $updatedPoll->user_id === $user->id;
+        $isModerator = $user->hasAnyRole(['Super Admin', 'Feed Moderator']);
+        if (($isCreator || $isModerator) && !$updatedPoll->is_anonymous) {
+            $updatedPoll->load(['votes.user.residentProfile', 'votes.option']);
+        }
+
         return response()->json($updatedPoll);
     }
 
@@ -235,6 +267,12 @@ class PollController extends Controller
             ]),
         ]);
 
-        return response()->json($poll->load(['options', 'user.residentProfile']));
+        $poll->load(['options', 'user.residentProfile']);
+        $isCreator = $poll->user_id === $user->id;
+        $isModerator = $user->hasAnyRole(['Super Admin', 'Feed Moderator']);
+        if (($isCreator || $isModerator) && !$poll->is_anonymous) {
+            $poll->load(['votes.user.residentProfile', 'votes.option']);
+        }
+        return response()->json($poll);
     }
 }

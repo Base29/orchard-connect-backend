@@ -21,6 +21,8 @@ class PollSystemTest extends TestCase
     {
         parent::setUp();
 
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+
         $this->verifiedUser = User::factory()->create();
         ResidentProfile::create([
             'user_id' => $this->verifiedUser->id,
@@ -307,4 +309,190 @@ class PollSystemTest extends TestCase
             'target_id' => $poll->id,
         ]);
     }
+
+    /**
+     * Poll creator can retrieve voters list.
+     */
+    public function test_poll_creator_can_retrieve_voters_list(): void
+    {
+        $poll = Poll::create([
+            'id' => \Illuminate\Support\Str::uuid(),
+            'user_id' => $this->verifiedUser->id,
+            'title' => 'Creator Poll',
+            'start_at' => now()->subDay(),
+            'end_at' => now()->addDay(),
+            'status' => 'active',
+        ]);
+
+        $option = PollOption::create([
+            'id' => \Illuminate\Support\Str::uuid(),
+            'poll_id' => $poll->id,
+            'option_text' => 'Option A',
+        ]);
+
+        $voter = User::factory()->create();
+        ResidentProfile::create([
+            'user_id' => $voter->id,
+            'phase' => 'Phase 2',
+            'block' => 'Block C',
+            'house_number' => '200',
+            'user_type' => 'owner',
+            'document_path' => 'doc.png',
+            'status' => 'approved',
+            'is_verified' => true,
+        ]);
+
+        PollVote::create([
+            'poll_id' => $poll->id,
+            'poll_option_id' => $option->id,
+            'user_id' => $voter->id,
+        ]);
+
+        $response = $this->actingAs($this->verifiedUser)
+            ->getJson('/api/polls')
+            ->assertStatus(200);
+
+        // Assert that the first poll returned (Creator Poll) has the votes key with details
+        $pollsData = $response->json('data');
+        $creatorPoll = collect($pollsData)->firstWhere('id', $poll->id);
+
+        $this->assertNotNull($creatorPoll);
+        $this->assertArrayHasKey('votes', $creatorPoll);
+        $this->assertCount(1, $creatorPoll['votes']);
+        $this->assertEquals($voter->name, $creatorPoll['votes'][0]['user']['name']);
+        $this->assertEquals('Phase 2', $creatorPoll['votes'][0]['user']['resident_profile']['phase']);
+        $this->assertEquals('Option A', $creatorPoll['votes'][0]['option']['option_text']);
+    }
+
+    /**
+     * Non-creator and non-moderator cannot retrieve voters list.
+     */
+    public function test_non_creator_cannot_retrieve_voters_list(): void
+    {
+        $poll = Poll::create([
+            'id' => \Illuminate\Support\Str::uuid(),
+            'user_id' => $this->verifiedUser->id,
+            'title' => 'Creator Poll',
+            'start_at' => now()->subDay(),
+            'end_at' => now()->addDay(),
+            'status' => 'active',
+        ]);
+
+        $option = PollOption::create([
+            'id' => \Illuminate\Support\Str::uuid(),
+            'poll_id' => $poll->id,
+            'option_text' => 'Option A',
+        ]);
+
+        $voter = User::factory()->create();
+        PollVote::create([
+            'poll_id' => $poll->id,
+            'poll_option_id' => $option->id,
+            'user_id' => $voter->id,
+        ]);
+
+        $otherUser = User::factory()->create();
+        ResidentProfile::create([
+            'user_id' => $otherUser->id,
+            'phase' => 'Phase 1',
+            'block' => 'Block A',
+            'house_number' => '102',
+            'user_type' => 'owner',
+            'document_path' => 'doc.png',
+            'status' => 'approved',
+            'is_verified' => true,
+        ]);
+
+        $response = $this->actingAs($otherUser)
+            ->getJson('/api/polls')
+            ->assertStatus(200);
+
+        $pollsData = $response->json('data');
+        $creatorPoll = collect($pollsData)->firstWhere('id', $poll->id);
+
+        $this->assertNotNull($creatorPoll);
+        $this->assertArrayNotHasKey('votes', $creatorPoll);
+    }
+
+    /**
+     * Verified resident can create an anonymous poll.
+     */
+    public function test_verified_resident_can_create_anonymous_poll(): void
+    {
+        $payload = [
+            'title' => 'Anonymous Park Feedback',
+            'description' => 'Is the lighting sufficient?',
+            'start_at' => now()->toIso8601String(),
+            'end_at' => now()->addDays(7)->toIso8601String(),
+            'options' => ['Yes', 'No'],
+            'is_anonymous' => true,
+        ];
+
+        $this->actingAs($this->verifiedUser)
+            ->postJson('/api/polls', $payload)
+            ->assertStatus(201)
+            ->assertJsonPath('is_anonymous', true);
+
+        $this->assertDatabaseHas('polls', [
+            'title' => 'Anonymous Park Feedback',
+            'user_id' => $this->verifiedUser->id,
+            'is_anonymous' => true,
+        ]);
+    }
+
+    /**
+     * Anonymous poll does not expose voters list to anyone, including creator or admins.
+     */
+    public function test_anonymous_poll_does_not_expose_voters_list_to_anyone(): void
+    {
+        $poll = Poll::create([
+            'id' => \Illuminate\Support\Str::uuid(),
+            'user_id' => $this->verifiedUser->id,
+            'title' => 'Secret Poll',
+            'start_at' => now()->subDay(),
+            'end_at' => now()->addDay(),
+            'status' => 'active',
+            'is_anonymous' => true,
+        ]);
+
+        $option = PollOption::create([
+            'id' => \Illuminate\Support\Str::uuid(),
+            'poll_id' => $poll->id,
+            'option_text' => 'Yes',
+        ]);
+
+        $voter = User::factory()->create();
+        PollVote::create([
+            'poll_id' => $poll->id,
+            'poll_option_id' => $option->id,
+            'user_id' => $voter->id,
+        ]);
+
+        // Check response for creator
+        $responseCreator = $this->actingAs($this->verifiedUser)
+            ->getJson('/api/polls')
+            ->assertStatus(200);
+
+        $pollsDataCreator = $responseCreator->json('data');
+        $creatorPollObj = collect($pollsDataCreator)->firstWhere('id', $poll->id);
+
+        $this->assertNotNull($creatorPollObj);
+        $this->assertArrayNotHasKey('votes', $creatorPollObj);
+
+        // Check response for super admin/moderator
+        $admin = User::factory()->create();
+        $admin->assignRole('Super Admin');
+        
+        $responseAdmin = $this->actingAs($admin)
+            ->getJson('/api/polls')
+            ->assertStatus(200);
+
+        $pollsDataAdmin = $responseAdmin->json('data');
+        $adminPollObj = collect($pollsDataAdmin)->firstWhere('id', $poll->id);
+
+        $this->assertNotNull($adminPollObj);
+        $this->assertArrayNotHasKey('votes', $adminPollObj);
+    }
 }
+
+
