@@ -12,10 +12,20 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
+use Spatie\Activitylog\Models\Concerns\LogsActivity;
+use Spatie\Activitylog\Support\LogOptions;
 
 class User extends Authenticatable implements FilamentUser
 {
-    use HasApiTokens, HasFactory, Notifiable, HasUuids, HasRoles;
+    use HasApiTokens, HasFactory, Notifiable, HasUuids, HasRoles, LogsActivity;
+
+    public function getActivitylogOptions(): LogOptions
+    {
+        return LogOptions::defaults()
+            ->logOnly(['name', 'email', 'status'])
+            ->logOnlyDirty()
+            ->dontLogEmptyChanges();
+    }
 
     /**
      * The attributes that are mass assignable.
@@ -83,6 +93,22 @@ class User extends Authenticatable implements FilamentUser
     public function residentProfile(): HasOne
     {
         return $this->hasOne(ResidentProfile::class);
+    }
+
+    /**
+     * Relational Map: Resident Polls
+     */
+    public function polls(): HasMany
+    {
+        return $this->hasMany(Poll::class);
+    }
+
+    /**
+     * Relational Map: Poll Votes cast by user
+     */
+    public function pollVotes(): HasMany
+    {
+        return $this->hasMany(PollVote::class);
     }
 
     /**

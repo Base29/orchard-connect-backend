@@ -15,6 +15,7 @@
         "laravel/tinker": "^3.0",
         "league/flysystem-aws-s3-v3": "^3.34",
         "predis/predis": "^2.2",
+        "spatie/laravel-activitylog": "^5.0",
         "spatie/laravel-permission": "^8.0"
     },
     "require-dev": {

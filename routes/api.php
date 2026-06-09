@@ -711,4 +711,13 @@ Route::middleware('auth:sanctum')->group(function () {
             return response()->json($comment->load('user.residentProfile'), 201);
         });
     });
+
+    // Resident Polls
+    Route::prefix('polls')->group(function () {
+        Route::get('/', [\App\Http\Controllers\PollController::class, 'index']);
+        Route::post('/', [\App\Http\Controllers\PollController::class, 'store']);
+        Route::put('/{poll}', [\App\Http\Controllers\PollController::class, 'update']);
+        Route::post('/{poll}/vote', [\App\Http\Controllers\PollController::class, 'vote']);
+        Route::post('/{poll}/suspend', [\App\Http\Controllers\PollController::class, 'suspend']);
+    });
 });
