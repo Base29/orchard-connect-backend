@@ -16,8 +16,14 @@ use Illuminate\Support\Facades\Route;
 |
 */
 
+Route::get('/maintenance-status', function () {
+    return response()->json([
+        'is_enabled' => (bool) \App\Models\Setting::getValue('maintenance_mode', false)
+    ]);
+});
+
 // Public OAuth & Traditional Auth Routes
-Route::prefix('auth')->group(function () {
+Route::middleware(\App\Http\Middleware\CheckMaintenanceMode::class)->prefix('auth')->group(function () {
     Route::get('{provider}/redirect', [OAuthController::class, 'redirectToProvider']);
     Route::get('{provider}/callback', [OAuthController::class, 'handleProviderCallback']);
     
@@ -78,7 +84,7 @@ Route::prefix('auth')->group(function () {
 });
 
 // Authenticated Resident Routes
-Route::middleware('auth:sanctum')->group(function () {
+Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::class])->group(function () {
     
     // User Session Profile Context
     Route::get('/user', function (Request $request) {
