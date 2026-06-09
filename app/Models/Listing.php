@@ -59,15 +59,24 @@ class Listing extends Model
             return [];
         }
 
-        return array_map(function ($url) {
-            if (str_contains($url, 'amazonaws.com')) {
+        try {
+            $s3Host = parse_url(\Illuminate\Support\Facades\Storage::disk('s3')->url('s3_test_prefix'), PHP_URL_HOST);
+        } catch (\Exception $e) {
+            $s3Host = null;
+        }
+
+        return array_map(function ($url) use ($s3Host) {
+            if ($s3Host) {
                 $parsed = parse_url($url);
-                $path = ltrim($parsed['path'] ?? '', '/');
-                if ($path) {
-                    try {
-                        return \Illuminate\Support\Facades\Storage::disk('s3')->temporaryUrl($path, now()->addMinutes(30));
-                    } catch (\Exception $e) {
-                        return $url;
+                $host = $parsed['host'] ?? '';
+                if ($host === $s3Host) {
+                    $path = ltrim($parsed['path'] ?? '', '/');
+                    if ($path) {
+                        try {
+                            return \Illuminate\Support\Facades\Storage::disk('s3')->temporaryUrl($path, now()->addMinutes(30));
+                        } catch (\Exception $e) {
+                            return $url;
+                        }
                     }
                 }
             }

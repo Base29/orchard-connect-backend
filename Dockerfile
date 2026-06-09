@@ -27,6 +27,9 @@ COPY --from=node-builder /app/public/build ./public/build
 # Install PHP dependencies (production only)
 RUN composer install --no-dev --optimize-autoloader --no-interaction
 
+# Create storage symlink
+RUN php artisan storage:link
+
 # Set up storage directories permissions
 RUN mkdir -p storage/framework/{sessions,views,caches} bootstrap/cache && \
     chown -R www-data:www-data storage bootstrap/cache
