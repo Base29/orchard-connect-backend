@@ -6,6 +6,7 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Table;
 use Filament\Tables\Filters\SelectFilter;
 
@@ -15,6 +16,11 @@ class NewsTable
     {
         return $table
             ->columns([
+                ImageColumn::make('image_path')
+                    ->label('Thumbnail')
+                    ->disk(empty(config('filesystems.disks.s3.key')) || empty(config('filesystems.disks.s3.bucket')) ? 'public' : 's3')
+                    ->square()
+                    ->size(40),
                 TextColumn::make('title')
                     ->label('Headline')
                     ->searchable()
