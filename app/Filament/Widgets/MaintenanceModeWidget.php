@@ -30,6 +30,7 @@ class MaintenanceModeWidget extends Widget
         // Broadcast the real-time status change to all online user sessions (via Reverb)
         try {
             event(new MaintenanceModeChanged($this->isMaintenance));
+            logger()->info('Dispatched MaintenanceModeChanged event. Status: ' . ($this->isMaintenance ? 'ON' : 'OFF'));
         } catch (\Exception $e) {
             logger()->error('Broadcasting MaintenanceModeChanged failed: ' . $e->getMessage());
         }
