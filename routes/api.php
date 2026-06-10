@@ -120,6 +120,51 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
             'is_locked' => $isLocked,
         ]);
     });
+    
+    // Resident stats for dashboard
+    Route::get('/user/stats', function (Request $request) {
+        $user = $request->user();
+        
+        $postsCount = \App\Models\Post::where('user_id', $user->id)
+            ->where('status', 'published')
+            ->count();
+            
+        $postLikesCount = \App\Models\Like::where('likeable_type', \App\Models\Post::class)
+            ->whereIn('likeable_id', function ($query) use ($user) {
+                $query->select('id')->from('posts')->where('user_id', $user->id);
+            })->count();
+
+        $postCommentsCount = \App\Models\Comment::whereIn('post_id', function ($query) use ($user) {
+            $query->select('id')->from('posts')->where('user_id', $user->id);
+        })->count();
+
+        $pollsCount = \App\Models\Poll::where('user_id', $user->id)->count();
+        
+        $pollVotesCount = \App\Models\PollVote::whereIn('poll_id', function ($query) use ($user) {
+            $query->select('id')->from('polls')->where('user_id', $user->id);
+        })->count();
+
+        $adsCount = \App\Models\Listing::where('user_id', $user->id)->count();
+        $activeAdsCount = \App\Models\Listing::where('user_id', $user->id)->where('status', 'active')->count();
+        $soldAdsCount = \App\Models\Listing::where('user_id', $user->id)->where('status', 'sold')->count();
+
+        return response()->json([
+            'posts' => [
+                'count' => $postsCount,
+                'likes' => $postLikesCount,
+                'comments' => $postCommentsCount,
+            ],
+            'polls' => [
+                'count' => $pollsCount,
+                'votes' => $pollVotesCount,
+            ],
+            'ads' => [
+                'count' => $adsCount,
+                'active' => $activeAdsCount,
+                'sold' => $soldAdsCount,
+            ]
+        ]);
+    });
 
     // Complete Resident Profile Setup
     Route::post('/resident/profile', function (Request $request) {
