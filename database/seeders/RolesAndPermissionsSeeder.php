@@ -18,87 +18,36 @@ class RolesAndPermissionsSeeder extends Seeder
         // Reset cached roles and permissions
         app()[PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // 1. Define Granular Permissions
+        // 1. Define Pruned Granular Permissions
         $permissions = [
-            // User management
-            'view_any_user',
-            'view_user',
-            'create_user',
-            'update_user',
-            'delete_user',
-            'verify_user',
-            'ban_user',
+            // Superadmin Tier
+            'manage-system',
+            'create-roles',
+            'create-permissions',
+            'assign-admin-roles',
+            'view-audit-logs',
 
-            // Post moderation
-            'view_any_post',
-            'view_post',
-            'create_post',
-            'update_post',
-            'delete_post',
-            'moderate_post',
+            // Community Admin Tier
+            'assign-moderator-roles',
+            'verify-residents',
+            'moderate-polls',
+            'verify-businesses',
+            'override-moderation',
 
-            // Comment moderation
-            'view_any_comment',
-            'view_comment',
-            'create_comment',
-            'update_comment',
-            'delete_comment',
-            'moderate_comment',
+            // Marketplace Moderator Tier
+            'review-listings',
+            'archive-listings',
 
-            // Listings (marketplace ads)
-            'view_any_listing',
-            'view_listing',
-            'create_listing',
-            'update_listing',
-            'delete_listing',
-            'moderate_listing',
-
-            // Directory Listings
-            'view_any_directory_listing',
-            'view_directory_listing',
-            'create_directory_listing',
-            'update_directory_listing',
-            'delete_directory_listing',
-
-            // Directory Categories
-            'view_any_directory_category',
-            'view_directory_category',
-            'create_directory_category',
-            'update_directory_category',
-            'delete_directory_category',
-
-            // Moderation logs (read-only auditing)
-            'view_any_moderation_log',
-            'view_moderation_log',
-
-            // Security Roles
-            'view_any_role',
-            'view_role',
-            'create_role',
-            'update_role',
-            'delete_role',
-
-            // Security Permissions
-            'view_any_permission',
-            'view_permission',
-            'create_permission',
-            'update_permission',
-            'delete_permission',
-
-            // Announcements
-            'view_any_announcement',
-            'view_announcement',
-            'create_announcement',
-            'update_announcement',
-            'delete_announcement',
-
-            // News
-            'view_any_news',
-            'view_news',
-            'create_news',
-            'update_news',
-            'delete_news',
+            // Content Moderator Tier
+            'create-news',
+            'moderate-comments',
+            'manage-polls',
         ];
+
+        // Clean up legacy/redundant permissions and roles from the database
+        $allowedRoles = ['superadmin', 'community-admin', 'marketplace-moderator', 'content-moderator'];
+        Permission::whereNotIn('name', $permissions)->delete();
+        Role::whereNotIn('name', $allowedRoles)->delete();
 
         // Seed permissions in Spatie
         foreach ($permissions as $permissionName) {
@@ -110,73 +59,48 @@ class RolesAndPermissionsSeeder extends Seeder
 
         // 2. Create Roles and Sync Permissions
         
-        // Feed Moderator
-        $feedModRole = Role::findOrCreate('Feed Moderator', 'web');
-        $feedModRole->syncPermissions([
-            'view_any_user',
-            'view_user',
-            'view_any_post',
-            'view_post',
-            'create_post',
-            'update_post',
-            'delete_post',
-            'moderate_post',
-            'view_any_comment',
-            'view_comment',
-            'create_comment',
-            'update_comment',
-            'delete_comment',
-            'moderate_comment',
-            'view_any_moderation_log',
-            'view_moderation_log',
-            'view_any_announcement',
-            'view_announcement',
-            'create_announcement',
-            'update_announcement',
-            'delete_announcement',
-            'view_any_news',
-            'view_news',
-            'create_news',
-            'update_news',
-            'delete_news',
+        // Superadmin
+        $superAdminRole = Role::findOrCreate('superadmin', 'web');
+        $superAdminRole->syncPermissions([
+            'manage-system',
+            'create-roles',
+            'create-permissions',
+            'assign-admin-roles',
+            'view-audit-logs',
+        ]);
+
+        // Community Admin
+        $communityAdminRole = Role::findOrCreate('community-admin', 'web');
+        $communityAdminRole->syncPermissions([
+            'assign-moderator-roles',
+            'verify-residents',
+            'moderate-polls',
+            'verify-businesses',
+            'override-moderation',
         ]);
 
         // Marketplace Moderator
-        $marketModRole = Role::findOrCreate('Marketplace Moderator', 'web');
+        $marketModRole = Role::findOrCreate('marketplace-moderator', 'web');
         $marketModRole->syncPermissions([
-            'view_any_user',
-            'view_user',
-            'view_any_listing',
-            'view_listing',
-            'create_listing',
-            'update_listing',
-            'delete_listing',
-            'moderate_listing',
-            'view_any_directory_listing',
-            'view_directory_listing',
-            'create_directory_listing',
-            'update_directory_listing',
-            'delete_directory_listing',
-            'view_any_directory_category',
-            'view_directory_category',
-            'create_directory_category',
-            'update_directory_category',
-            'delete_directory_category',
-            'view_any_moderation_log',
-            'view_moderation_log',
+            'review-listings',
+            'archive-listings',
         ]);
 
-        // Super Admin
-        $superAdminRole = Role::findOrCreate('Super Admin', 'web');
-        $superAdminRole->syncPermissions(Permission::all());
+        // Content Moderator
+        $contentModRole = Role::findOrCreate('content-moderator', 'web');
+        $contentModRole->syncPermissions([
+            'create-news',
+            'moderate-comments',
+            'manage-polls',
+        ]);
 
         // 3. Seed / Assign Roles to Administrator & Moderator Accounts
         
-        // Super Admin: me@imfaisal.pro
+        // Superadmin: me@imfaisal.pro
         $faisal = User::where('email', 'me@imfaisal.pro')->first();
         if ($faisal) {
             $faisal->assignRole($superAdminRole);
-            $this->command->info('Role "Super Admin" successfully assigned to existing user: me@imfaisal.pro');
+            $this->command->info('Role "superadmin" successfully assigned to existing user: me@imfaisal.pro');
         } else {
             $faisal = User::create([
                 'name' => 'Faisal Hussain',
@@ -185,29 +109,53 @@ class RolesAndPermissionsSeeder extends Seeder
                 'status' => 'active',
             ]);
             $faisal->assignRole($superAdminRole);
-            $this->command->info('Created Super Admin user: me@imfaisal.pro (password: password123)');
+            $this->command->info('Created superadmin user: me@imfaisal.pro (password: password123)');
         }
 
         // Test fallback Admin: test@example.com
         $testAdmin = User::where('email', 'test@example.com')->first();
         if ($testAdmin) {
             $testAdmin->assignRole($superAdminRole);
-            $this->command->info('Role "Super Admin" assigned to test@example.com');
+            $this->command->info('Role "superadmin" assigned to test@example.com');
+        } else {
+            $testAdmin = User::create([
+                'name' => 'Test Admin',
+                'email' => 'test@example.com',
+                'password' => bcrypt('password123'),
+                'status' => 'active',
+            ]);
+            $testAdmin->assignRole($superAdminRole);
+            $this->command->info('Created superadmin user: test@example.com (password: password123)');
         }
 
-        // Feed Moderator test user
-        $feedModUser = User::where('email', 'feed_moderator@orchard.com')->first();
-        if (!$feedModUser) {
-            $feedModUser = User::create([
-                'name' => 'Feed Moderator User',
+        // Community Admin test user
+        $communityAdminUser = User::where('email', 'community_admin@orchard.com')->first();
+        if (!$communityAdminUser) {
+            $communityAdminUser = User::create([
+                'name' => 'Community Admin User',
+                'email' => 'community_admin@orchard.com',
+                'password' => bcrypt('password123'),
+                'status' => 'active',
+            ]);
+            $communityAdminUser->assignRole($communityAdminRole);
+            $this->command->info('Created Community Admin: community_admin@orchard.com (password: password123)');
+        } else {
+            $communityAdminUser->assignRole($communityAdminRole);
+        }
+
+        // Content Moderator test user
+        $contentModUser = User::where('email', 'feed_moderator@orchard.com')->first();
+        if (!$contentModUser) {
+            $contentModUser = User::create([
+                'name' => 'Content Moderator User',
                 'email' => 'feed_moderator@orchard.com',
                 'password' => bcrypt('password123'),
                 'status' => 'active',
             ]);
-            $feedModUser->assignRole($feedModRole);
-            $this->command->info('Created Feed Moderator: feed_moderator@orchard.com (password: password123)');
+            $contentModUser->assignRole($contentModRole);
+            $this->command->info('Created Content Moderator: feed_moderator@orchard.com (password: password123)');
         } else {
-            $feedModUser->assignRole($feedModRole);
+            $contentModUser->assignRole($contentModRole);
         }
 
         // Marketplace Moderator test user

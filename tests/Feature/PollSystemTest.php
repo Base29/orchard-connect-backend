@@ -481,7 +481,7 @@ class PollSystemTest extends TestCase
 
         // Check response for super admin/moderator
         $admin = User::factory()->create();
-        $admin->assignRole('Super Admin');
+        $admin->assignRole('superadmin');
         
         $responseAdmin = $this->actingAs($admin)
             ->getJson('/api/polls')

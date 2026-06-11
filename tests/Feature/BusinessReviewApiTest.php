@@ -329,7 +329,7 @@ class BusinessReviewApiTest extends TestCase
         ]);
 
         $admin = User::factory()->create();
-        $admin->assignRole('Super Admin');
+        $admin->assignRole('superadmin');
 
         $response = $this->actingAs($admin, 'sanctum')
             ->deleteJson("/api/directory/reviews/{$review->id}");

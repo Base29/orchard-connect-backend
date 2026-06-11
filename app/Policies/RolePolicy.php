@@ -12,26 +12,26 @@ class RolePolicy
 
     public function viewAny(User $user): bool
     {
-        return $user->can('view_any_role');
+        return $user->can('manage-system') || $user->can('create-roles') || $user->can('assign-admin-roles') || $user->can('assign-moderator-roles');
     }
 
     public function view(User $user, Role $role): bool
     {
-        return $user->can('view_role');
+        return $user->can('manage-system') || $user->can('create-roles') || $user->can('assign-admin-roles') || $user->can('assign-moderator-roles');
     }
 
     public function create(User $user): bool
     {
-        return $user->can('create_role');
+        return $user->can('manage-system') || $user->can('create-roles');
     }
 
     public function update(User $user, Role $role): bool
     {
-        return $user->can('update_role');
+        return $user->can('manage-system') || $user->can('create-roles');
     }
 
     public function delete(User $user, Role $role): bool
     {
-        return $user->can('delete_role');
+        return $user->can('manage-system') || $user->can('create-roles');
     }
 }

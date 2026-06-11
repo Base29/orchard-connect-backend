@@ -12,26 +12,26 @@ class AnnouncementPolicy
 
     public function viewAny(User $user): bool
     {
-        return $user->can('view_any_announcement');
+        return $user->can('create-news') || $user->can('manage-system');
     }
 
     public function view(User $user, Announcement $announcement): bool
     {
-        return $user->can('view_announcement');
+        return $user->can('create-news') || $user->can('manage-system');
     }
 
     public function create(User $user): bool
     {
-        return $user->can('create_announcement');
+        return $user->can('create-news') || $user->can('manage-system');
     }
 
     public function update(User $user, Announcement $announcement): bool
     {
-        return $user->can('update_announcement');
+        return $user->can('create-news') || $user->can('manage-system');
     }
 
     public function delete(User $user, Announcement $announcement): bool
     {
-        return $user->can('delete_announcement');
+        return $user->can('create-news') || $user->can('manage-system');
     }
 }

@@ -19,7 +19,7 @@ class PollController extends Controller
         $user = $request->user();
 
         // Get all polls, eager loading options with their votes count, and creator
-        $polls = Poll::with(['user.residentProfile', 'options' => function ($query) {
+        $polls = Poll::with(['user.residentProfile', 'user.roles', 'options' => function ($query) {
             $query->withCount('votes');
         }])
         ->withCount('votes')
@@ -36,7 +36,7 @@ class PollController extends Controller
 
             // Load votes with voter details if creator or admin/moderator and poll is not anonymous
             $isCreator = $poll->user_id === $user->id;
-            $isModerator = $user->hasAnyRole(['Super Admin', 'Feed Moderator']);
+            $isModerator = $user->can('moderate-polls') || $user->can('manage-polls');
 
             if (($isCreator || $isModerator) && !$poll->is_anonymous) {
                 $poll->load(['votes.user.residentProfile', 'votes.option']);
@@ -104,8 +104,8 @@ class PollController extends Controller
             return $poll;
         });
 
-        $relations = ['options', 'user.residentProfile'];
-        if (!$poll->is_anonymous && ($poll->user_id === $user->id || $user->hasAnyRole(['Super Admin', 'Feed Moderator']))) {
+        $relations = ['options', 'user.residentProfile', 'user.roles'];
+        if (!$poll->is_anonymous && ($poll->user_id === $user->id || $user->can('moderate-polls') || $user->can('manage-polls'))) {
             $relations[] = 'votes.user.residentProfile';
             $relations[] = 'votes.option';
         }
@@ -160,8 +160,8 @@ class PollController extends Controller
             }
         });
 
-        $relations = ['options', 'user.residentProfile'];
-        if (!$poll->is_anonymous && ($poll->user_id === $user->id || $user->hasAnyRole(['Super Admin', 'Feed Moderator']))) {
+        $relations = ['options', 'user.residentProfile', 'user.roles'];
+        if (!$poll->is_anonymous && ($poll->user_id === $user->id || $user->can('moderate-polls') || $user->can('manage-polls'))) {
             $relations[] = 'votes.user.residentProfile';
             $relations[] = 'votes.option';
         }
@@ -215,7 +215,7 @@ class PollController extends Controller
         ]);
 
         // Return updated poll data
-        $updatedPoll = Poll::with(['user.residentProfile', 'options' => function ($query) {
+        $updatedPoll = Poll::with(['user.residentProfile', 'user.roles', 'options' => function ($query) {
             $query->withCount('votes');
         }])
         ->withCount('votes')
@@ -225,7 +225,7 @@ class PollController extends Controller
 
         // Conditionally load votes
         $isCreator = $updatedPoll->user_id === $user->id;
-        $isModerator = $user->hasAnyRole(['Super Admin', 'Feed Moderator']);
+        $isModerator = $user->can('moderate-polls') || $user->can('manage-polls');
         if (($isCreator || $isModerator) && !$updatedPoll->is_anonymous) {
             $updatedPoll->load(['votes.user.residentProfile', 'votes.option']);
         }
@@ -242,7 +242,7 @@ class PollController extends Controller
 
         // Allow moderator or creator to suspend the poll
         $isCreator = $poll->user_id === $user->id;
-        $isModerator = $user->hasAnyRole(['Super Admin', 'Feed Moderator']);
+        $isModerator = $user->can('moderate-polls') || $user->can('manage-polls');
 
         if (!$isCreator && !$isModerator) {
             return response()->json(['message' => 'Unauthorized.'], 403);
@@ -267,9 +267,9 @@ class PollController extends Controller
             ]),
         ]);
 
-        $poll->load(['options', 'user.residentProfile']);
+        $poll->load(['options', 'user.residentProfile', 'user.roles']);
         $isCreator = $poll->user_id === $user->id;
-        $isModerator = $user->hasAnyRole(['Super Admin', 'Feed Moderator']);
+        $isModerator = $user->can('moderate-polls') || $user->can('manage-polls');
         if (($isCreator || $isModerator) && !$poll->is_anonymous) {
             $poll->load(['votes.user.residentProfile', 'votes.option']);
         }

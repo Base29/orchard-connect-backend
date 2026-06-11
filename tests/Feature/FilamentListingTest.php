@@ -29,7 +29,7 @@ class FilamentListingTest extends TestCase
         $admin = User::where('email', 'me@imfaisal.pro')->first();
         if (!$admin) {
             $admin = User::factory()->create();
-            $admin->assignRole('Super Admin');
+            $admin->assignRole('superadmin');
         }
 
         // Create a listing to edit

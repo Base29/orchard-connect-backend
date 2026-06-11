@@ -12,26 +12,26 @@ class ListingPolicy
 
     public function viewAny(User $user): bool
     {
-        return $user->can('view_any_listing');
+        return $user->isActive();
     }
 
     public function view(User $user, Listing $listing): bool
     {
-        return $user->can('view_listing');
+        return $user->isActive();
     }
 
     public function create(User $user): bool
     {
-        return $user->can('create_listing');
+        return $user->isActive();
     }
 
     public function update(User $user, Listing $listing): bool
     {
-        return $user->can('update_listing');
+        return $user->id === $listing->user_id || $user->can('review-listings') || $user->can('archive-listings') || $user->can('manage-system');
     }
 
     public function delete(User $user, Listing $listing): bool
     {
-        return $user->can('delete_listing');
+        return $user->id === $listing->user_id || $user->can('review-listings') || $user->can('archive-listings') || $user->can('manage-system');
     }
 }

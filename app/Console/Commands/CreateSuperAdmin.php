@@ -37,7 +37,7 @@ class CreateSuperAdmin extends Command
         $this->info('=========================================');
 
         // 1. Ensure Super Admin role exists
-        $role = Role::findOrCreate('Super Admin', 'web');
+        $role = Role::findOrCreate('superadmin', 'web');
 
         // 2. Gather Inputs
         $name = $this->option('name') ?: $this->ask('Enter Name');
@@ -62,9 +62,9 @@ class CreateSuperAdmin extends Command
         $user = User::where('email', $email)->first();
         if ($user) {
             $this->warn("A user with email '{$email}' already exists.");
-            if ($this->confirm('Would you like to assign the "Super Admin" role to this existing user?')) {
+            if ($this->confirm('Would you like to assign the "superadmin" role to this existing user?')) {
                 $user->assignRole($role);
-                $this->info("Successfully assigned 'Super Admin' role to {$user->name}!");
+                $this->info("Successfully assigned 'superadmin' role to {$user->name}!");
                 return self::SUCCESS;
             } else {
                 $this->error('Operation cancelled.');

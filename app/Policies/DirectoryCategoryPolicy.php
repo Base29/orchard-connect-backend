@@ -12,26 +12,26 @@ class DirectoryCategoryPolicy
 
     public function viewAny(User $user): bool
     {
-        return $user->can('view_any_directory_category');
+        return $user->can('verify-businesses') || $user->can('review-listings') || $user->can('manage-system');
     }
 
     public function view(User $user, DirectoryCategory $directoryCategory): bool
     {
-        return $user->can('view_directory_category');
+        return $user->can('verify-businesses') || $user->can('review-listings') || $user->can('manage-system');
     }
 
     public function create(User $user): bool
     {
-        return $user->can('create_directory_category');
+        return $user->can('verify-businesses') || $user->can('review-listings') || $user->can('manage-system');
     }
 
     public function update(User $user, DirectoryCategory $directoryCategory): bool
     {
-        return $user->can('update_directory_category');
+        return $user->can('verify-businesses') || $user->can('review-listings') || $user->can('manage-system');
     }
 
     public function delete(User $user, DirectoryCategory $directoryCategory): bool
     {
-        return $user->can('delete_directory_category');
+        return $user->can('verify-businesses') || $user->can('review-listings') || $user->can('manage-system');
     }
 }

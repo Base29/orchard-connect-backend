@@ -18,6 +18,11 @@ class ResidentProfileResource extends Resource
 {
     protected static ?string $model = ResidentProfile::class;
 
+    public static function canAccessNavigation(): bool
+    {
+        return !auth()->user()->hasAnyRole(['marketplace-moderator', 'content-moderator']);
+    }
+
     protected static \UnitEnum|string|null $navigationGroup = 'Community & Verification';
 
     protected static ?string $navigationLabel = 'Residency Verifications';

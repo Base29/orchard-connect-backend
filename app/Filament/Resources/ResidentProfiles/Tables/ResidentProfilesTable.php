@@ -76,7 +76,7 @@ class ResidentProfilesTable
                     ->label('Approve')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
-                    ->visible(fn ($record) => auth()->user()->can('verify_user') && $record->status === 'pending')
+                    ->visible(fn ($record) => auth()->user()->can('verify-residents') && $record->status === 'pending')
                     ->requiresConfirmation()
                     ->action(function ($record) {
                         $record->update([
@@ -107,7 +107,7 @@ class ResidentProfilesTable
                     ->label('Reject')
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
-                    ->visible(fn ($record) => auth()->user()->can('verify_user') && $record->status === 'pending')
+                    ->visible(fn ($record) => auth()->user()->can('verify-residents') && $record->status === 'pending')
                     ->form([
                         \Filament\Forms\Components\Select::make('rejection_reason')
                             ->label('Rejection Reason')
@@ -116,7 +116,7 @@ class ResidentProfilesTable
                                 'blurry_document' => 'Blurry Document',
                                 'expired_document' => 'Expired Document',
                                 'invalid_document' => 'Invalid/Unsupported Document',
-                            ])
+                             ])
                             ->required(),
                         \Filament\Forms\Components\Textarea::make('rejection_message')
                             ->label('Custom Message (Optional)')
@@ -147,6 +147,53 @@ class ResidentProfilesTable
 
                         // Broadcast real-time status update
                         event(new ResidentVerificationStatusUpdated('rejected', $data['rejection_reason'], $data['rejection_message'] ?? null, $record->user_id));
+                    }),
+
+                Action::make('override_moderation')
+                    ->label('Override Moderation')
+                    ->icon('heroicon-o-shield-exclamation')
+                    ->color('warning')
+                    ->visible(fn ($record) => auth()->user()->can('override-moderation'))
+                    ->form([
+                        \Filament\Forms\Components\Select::make('status')
+                            ->label('New Status')
+                            ->options([
+                                'approved' => 'Approved',
+                                'rejected' => 'Rejected',
+                                'pending' => 'Pending',
+                            ])
+                            ->required(),
+                        \Filament\Forms\Components\Textarea::make('reason')
+                            ->label('Reason for Override')
+                            ->required(),
+                    ])
+                    ->action(function ($record, array $data) {
+                        $oldStatus = $record->status;
+                        $newStatus = $data['status'];
+                        $isVerified = $newStatus === 'approved';
+
+                        $record->update([
+                            'status' => $newStatus,
+                            'is_verified' => $isVerified,
+                            'verified_by' => auth()->id(),
+                            'verified_at' => now(),
+                        ]);
+
+                        ModerationLog::create([
+                            'action' => 'override_resident_moderation',
+                            'target_type' => \App\Models\User::class,
+                            'target_id' => $record->user_id,
+                            'moderator_id' => auth()->id(),
+                            'reason' => 'Moderation overridden: ' . $data['reason'],
+                            'metadata' => json_encode([
+                                'previous_status' => $oldStatus,
+                                'new_status' => $newStatus,
+                                'reason' => $data['reason'],
+                            ]),
+                        ]);
+
+                        // Broadcast real-time status update
+                        event(new ResidentVerificationStatusUpdated($newStatus, null, $data['reason'], $record->user_id));
                     }),
             ])
             ->toolbarActions([

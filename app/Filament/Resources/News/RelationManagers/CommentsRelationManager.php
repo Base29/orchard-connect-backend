@@ -60,7 +60,7 @@ class CommentsRelationManager extends RelationManager
                     ->label('Moderate / Delete')
                     ->icon('heroicon-o-trash')
                     ->color('danger')
-                    ->visible(fn () => auth()->user()->can('moderate_comment'))
+                    ->visible(fn () => auth()->user()->can('moderate-comments'))
                     ->form([
                         Textarea::make('reason')
                             ->label('Reason for Deleting Comment')

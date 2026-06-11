@@ -46,7 +46,16 @@ class UserForm
                     ]),
 
                 Section::make('Resident Profile')
-                    ->relationship('residentProfile')
+                    ->relationship('residentProfile', condition: function (?array $state): bool {
+                        if (!$state) {
+                            return false;
+                        }
+                        return filled($state['phase'] ?? null) 
+                            || filled($state['block'] ?? null) 
+                            || filled($state['house_number'] ?? null)
+                            || filled($state['street_number'] ?? null)
+                            || filled($state['user_type'] ?? null);
+                    })
                     ->schema([
                         Select::make('phase')
                             ->options([
@@ -55,12 +64,12 @@ class UserForm
                                 'Phase 3' => 'Phase 3',
                                 'Phase 4' => 'Phase 4',
                             ])
-                            ->required(),
+                            ->required(fn ($get, $record) => ($record?->exists) || filled($get('block')) || filled($get('house_number')) || filled($get('user_type'))),
                         TextInput::make('block')
-                            ->required()
+                            ->required(fn ($get, $record) => ($record?->exists) || filled($get('phase')) || filled($get('house_number')) || filled($get('user_type')))
                             ->placeholder('e.g. Block A'),
                         TextInput::make('house_number')
-                            ->required()
+                            ->required(fn ($get, $record) => ($record?->exists) || filled($get('phase')) || filled($get('block')) || filled($get('user_type')))
                             ->placeholder('e.g. 124-B'),
                         TextInput::make('street_number')
                             ->placeholder('e.g. Street 4'),
@@ -71,7 +80,7 @@ class UserForm
                                 'tenant' => 'Tenant',
                                 'visitor' => 'Visitor',
                             ])
-                            ->required(),
+                            ->required(fn ($get, $record) => ($record?->exists) || filled($get('phase')) || filled($get('block')) || filled($get('house_number'))),
                         Toggle::make('is_verified')
                             ->label('Verified Community Resident?'),
                     ]),

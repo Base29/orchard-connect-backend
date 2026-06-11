@@ -81,7 +81,7 @@ class ListingsTable
                     ->label('Approve')
                     ->icon('heroicon-o-check')
                     ->color('success')
-                    ->visible(fn ($record) => auth()->user()->can('moderate_listing') && in_array($record->status, ['pending', 'flagged', 'suspended']))
+                    ->visible(fn ($record) => auth()->user()->can('review-listings') && in_array($record->status, ['pending', 'flagged', 'suspended']))
                     ->action(function ($record) {
                         $oldStatus = $record->status;
                         $record->update(['status' => 'active']);
@@ -100,7 +100,7 @@ class ListingsTable
                     ->label('Suspend')
                     ->icon('heroicon-o-x-circle')
                     ->color('danger')
-                    ->visible(fn ($record) => auth()->user()->can('moderate_listing') && $record->status !== 'suspended')
+                    ->visible(fn ($record) => auth()->user()->can('review-listings') && $record->status !== 'suspended')
                     ->form([
                         \Filament\Forms\Components\Textarea::make('reason')
                             ->label('Reason for Suspension')

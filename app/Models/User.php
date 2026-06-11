@@ -19,6 +19,13 @@ class User extends Authenticatable implements FilamentUser
 {
     use HasApiTokens, HasFactory, Notifiable, HasUuids, HasRoles, LogsActivity;
 
+    /**
+     * The relationships that should always be eager loaded.
+     *
+     * @var array<string>
+     */
+    protected $with = ['roles'];
+
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()
@@ -76,7 +83,7 @@ class User extends Authenticatable implements FilamentUser
      */
     public function canAccessPanel(Panel $panel): bool
     {
-        return $this->isActive() && $this->hasAnyRole(['Super Admin', 'Feed Moderator', 'Marketplace Moderator']);
+        return $this->isActive() && $this->hasAnyRole(['superadmin', 'community-admin', 'marketplace-moderator', 'content-moderator']);
     }
 
     /**
@@ -158,7 +165,12 @@ class User extends Authenticatable implements FilamentUser
     {
         $array = parent::toArray();
         try {
-            if ($this->hasAnyRole(['Super Admin', 'Feed Moderator', 'Marketplace Moderator'])) {
+            if ($this->relationLoaded('roles')) {
+                $array['roles'] = $this->roles->pluck('name')->toArray();
+            } else {
+                $array['roles'] = [];
+            }
+            if ($this->hasAnyRole(['superadmin', 'community-admin', 'marketplace-moderator', 'content-moderator'])) {
                 $array['status'] = 'admin';
             }
         } catch (\Throwable $e) {

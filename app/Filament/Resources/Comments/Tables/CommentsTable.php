@@ -57,7 +57,7 @@ class CommentsTable
                     ->label('Moderate / Delete')
                     ->icon('heroicon-o-trash')
                     ->color('danger')
-                    ->visible(fn () => auth()->user()->can('moderate_comment'))
+                    ->visible(fn () => auth()->user()->can('moderate-comments'))
                     ->form([
                         \Filament\Forms\Components\Textarea::make('reason')
                             ->label('Reason for Deleting Comment')

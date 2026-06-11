@@ -63,7 +63,7 @@ class UsersTable
                     ->label('Verify')
                     ->icon('heroicon-o-check-circle')
                     ->color('success')
-                    ->visible(fn ($record) => auth()->user()->can('verify_user') && $record->residentProfile && !$record->residentProfile->is_verified)
+                    ->visible(fn ($record) => auth()->user()->can('verify-residents') && $record->residentProfile && !$record->residentProfile->is_verified)
                     ->action(function ($record) {
                         $record->residentProfile()->update([
                             'is_verified' => true,
@@ -85,7 +85,7 @@ class UsersTable
                     ->label('Suspend')
                     ->icon('heroicon-o-x-circle')
                     ->color('warning')
-                    ->visible(fn ($record) => auth()->user()->can('ban_user') && $record->status === 'active')
+                    ->visible(fn ($record) => auth()->user()->can('manage-system') && $record->status === 'active')
                     ->form([
                         \Filament\Forms\Components\Textarea::make('reason')
                             ->label('Reason for Suspension')
@@ -109,7 +109,7 @@ class UsersTable
                     ->label('Ban')
                     ->icon('heroicon-o-no-symbol')
                     ->color('danger')
-                    ->visible(fn ($record) => auth()->user()->can('ban_user') && $record->status !== 'banned')
+                    ->visible(fn ($record) => auth()->user()->can('manage-system') && $record->status !== 'banned')
                     ->form([
                         \Filament\Forms\Components\Textarea::make('reason')
                             ->label('Reason for Ban')

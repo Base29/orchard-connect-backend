@@ -89,7 +89,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
     
     // User Session Profile Context
     Route::get('/user', function (Request $request) {
-        $user = $request->user()->load('residentProfile');
+        $user = $request->user()->load(['residentProfile', 'roles']);
         
         $rejectionsCount = 0;
         $isLocked = false;
@@ -248,6 +248,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
             // Retrieve recent timeline posts with user profiles, likes, and flags scoped to current user
             $posts = \App\Models\Post::with([
                 'user.residentProfile', 
+                'user.roles',
                 'likes',
                 'flags' => function ($q) use ($request) {
                     $q->where('user_id', $request->user()->id);
@@ -333,7 +334,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
                 'content' => $validated['content'],
             ]);
 
-            $loadedComment = $comment->load('user.residentProfile');
+            $loadedComment = $comment->load(['user.residentProfile', 'user.roles']);
 
             try {
                 broadcast(new \App\Events\CommentCreated($loadedComment))->toOthers();
@@ -347,7 +348,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
         // Get comments for a post
         Route::get('/{post}/comments', function (\App\Models\Post $post) {
             $comments = $post->comments()
-                ->with('user.residentProfile')
+                ->with(['user.residentProfile', 'user.roles'])
                 ->oldest()
                 ->get();
 
@@ -424,6 +425,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
         Route::get('/', function (Request $request) {
             $query = \App\Models\Listing::with([
                 'user.residentProfile',
+                'user.roles',
                 'flags' => function ($q) use ($request) {
                     $q->where('user_id', $request->user()->id);
                 }
@@ -480,6 +482,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
         Route::get('/{listing}', function (Request $request, \App\Models\Listing $listing) {
             return response()->json($listing->load([
                 'user.residentProfile',
+                'user.roles',
                 'flags' => function ($q) use ($request) {
                     $q->where('user_id', $request->user()->id);
                 }
@@ -490,8 +493,22 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
         Route::delete('/{listing}', function (Request $request, \App\Models\Listing $listing) {
             $user = $request->user();
 
-            if ($listing->user_id !== $user->id && !$user->hasAnyRole(['Super Admin', 'Marketplace Moderator'])) {
+            if ($listing->user_id !== $user->id && !$user->can('archive-listings')) {
                 return response()->json(['message' => 'Unauthorized. You do not own this listing.'], 403);
+            }
+
+            if ($listing->user_id !== $user->id) {
+                \App\Models\ModerationLog::create([
+                    'action' => 'delete_listing',
+                    'target_type' => get_class($listing),
+                    'target_id' => $listing->id,
+                    'moderator_id' => $user->id,
+                    'reason' => 'Classified listing deleted/archived by moderator/admin.',
+                    'metadata' => json_encode([
+                        'title' => $listing->title,
+                        'seller_id' => $listing->user_id,
+                    ]),
+                ]);
             }
 
             $listing->delete();
@@ -502,7 +519,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
         Route::patch('/{listing}/status', function (Request $request, \App\Models\Listing $listing) {
             $user = $request->user();
 
-            if ($listing->user_id !== $user->id && !$user->hasAnyRole(['Super Admin', 'Marketplace Moderator'])) {
+            if ($listing->user_id !== $user->id && !$user->can('review-listings')) {
                 return response()->json(['message' => 'Unauthorized.'], 403);
             }
 
@@ -510,14 +527,30 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
                 'status' => 'required|string|in:active,sold,flagged,suspended',
             ]);
 
+            $oldStatus = $listing->status;
             $listing->update(['status' => $validated['status']]);
+
+            if ($listing->user_id !== $user->id) {
+                \App\Models\ModerationLog::create([
+                    'action' => 'update_listing_status',
+                    'target_type' => get_class($listing),
+                    'target_id' => $listing->id,
+                    'moderator_id' => $user->id,
+                    'reason' => 'Listing status updated to ' . $validated['status'] . ' by moderator/admin.',
+                    'metadata' => json_encode([
+                        'previous_status' => $oldStatus,
+                        'new_status' => $validated['status'],
+                    ]),
+                ]);
+            }
+
             return response()->json($listing);
         });
 
         // Get listing comments
         Route::get('/{listing}/comments', function (\App\Models\Listing $listing) {
             $comments = $listing->comments()
-                ->with('user.residentProfile')
+                ->with(['user.residentProfile', 'user.roles'])
                 ->oldest()
                 ->get();
             return response()->json($comments);
@@ -541,7 +574,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
                 'content' => $validated['content'],
             ]);
 
-            return response()->json($comment->load('user.residentProfile'), 201);
+            return response()->json($comment->load(['user.residentProfile', 'user.roles']), 201);
         });
 
         // Flag Listing
@@ -630,7 +663,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
         
         $listing->loadCount('reviews')->loadAvg('reviews', 'rating');
         $listing->load(['category', 'reviews' => function ($query) {
-            $query->with('user.residentProfile')->latest();
+            $query->with(['user.residentProfile', 'user.roles'])->latest();
         }]);
 
         return response()->json($listing);
@@ -656,15 +689,29 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
             ]
         );
 
-        return response()->json($review->load('user.residentProfile'), 201);
+        return response()->json($review->load(['user.residentProfile', 'user.roles']), 201);
     });
 
     // Delete review
     Route::delete('/directory/reviews/{review}', function (Request $request, \App\Models\DirectoryReview $review) {
         $user = $request->user();
 
-        if ($review->user_id !== $user->id && !$user->hasAnyRole(['Super Admin', 'Marketplace Moderator'])) {
+        if ($review->user_id !== $user->id && !$user->can('review-listings')) {
             return response()->json(['message' => 'Unauthorized. You do not own this review.'], 403);
+        }
+
+        if ($review->user_id !== $user->id) {
+            \App\Models\ModerationLog::create([
+                'action' => 'delete_directory_review',
+                'target_type' => get_class($review),
+                'target_id' => $review->id,
+                'moderator_id' => $user->id,
+                'reason' => 'Directory review deleted by moderator/admin.',
+                'metadata' => json_encode([
+                    'review_owner_id' => $review->user_id,
+                    'listing_id' => $review->directory_listing_id,
+                ]),
+            ]);
         }
 
         $review->delete();
@@ -688,7 +735,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
 
     // Community Board Announcements
     Route::get('/announcements', function (Request $request) {
-        $query = \App\Models\Announcement::with('author')
+        $query = \App\Models\Announcement::with(['author', 'author.roles'])
             ->where('status', 'published')
             ->orderBy('pinned', 'desc')
             ->latest();
@@ -704,13 +751,13 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
         if ($announcement->status !== 'published') {
             return response()->json(['message' => 'Announcement not found.'], 404);
         }
-        return response()->json($announcement->load('author'));
+        return response()->json($announcement->load(['author', 'author.roles']));
     });
 
     // Orchard News Articles
     Route::prefix('news')->group(function () {
         Route::get('/', function (Request $request) {
-            $news = \App\Models\News::with('author')
+            $news = \App\Models\News::with(['author', 'author.roles'])
                 ->withCount('comments')
                 ->where('status', 'published')
                 ->latest()
@@ -723,7 +770,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
             if ($news->status !== 'published') {
                 return response()->json(['message' => 'News article not found.'], 404);
             }
-            return response()->json($news->load('author'));
+            return response()->json($news->load(['author', 'author.roles']));
         });
 
         Route::get('/{news}/comments', function (Request $request, \App\Models\News $news) {
@@ -732,7 +779,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
             }
 
             $comments = $news->comments()
-                ->with('user.residentProfile')
+                ->with(['user.residentProfile', 'user.roles'])
                 ->oldest()
                 ->get();
 
@@ -760,7 +807,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
                 'content' => $validated['content'],
             ]);
 
-            return response()->json($comment->load('user.residentProfile'), 201);
+            return response()->json($comment->load(['user.residentProfile', 'user.roles']), 201);
         });
     });
 

@@ -66,9 +66,9 @@ class CreateDemoUsers extends Command
         // 2. Resolve a Super Admin for verification field
         $verifierId = null;
         try {
-            $superAdminRole = Role::where('name', 'Super Admin')->first();
+            $superAdminRole = Role::where('name', 'superadmin')->first();
             if ($superAdminRole) {
-                $superAdmin = User::role('Super Admin')->first();
+                $superAdmin = User::role('superadmin')->first();
                 if ($superAdmin) {
                     $verifierId = $superAdmin->id;
                     $this->line("Using Super Admin '{$superAdmin->name}' ({$superAdmin->email}) as the verifier.");

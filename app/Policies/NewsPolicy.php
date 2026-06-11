@@ -15,7 +15,7 @@ class NewsPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->can('view_any_news');
+        return $user->can('create-news') || $user->can('manage-system');
     }
 
     /**
@@ -23,7 +23,7 @@ class NewsPolicy
      */
     public function view(User $user, News $news): bool
     {
-        return $user->can('view_news');
+        return $user->can('create-news') || $user->can('manage-system');
     }
 
     /**
@@ -31,7 +31,7 @@ class NewsPolicy
      */
     public function create(User $user): bool
     {
-        return $user->can('create_news');
+        return $user->can('create-news') || $user->can('manage-system');
     }
 
     /**
@@ -39,7 +39,7 @@ class NewsPolicy
      */
     public function update(User $user, News $news): bool
     {
-        return $user->can('update_news');
+        return $user->can('create-news') || $user->can('manage-system');
     }
 
     /**
@@ -47,6 +47,6 @@ class NewsPolicy
      */
     public function delete(User $user, News $news): bool
     {
-        return $user->can('delete_news');
+        return $user->can('create-news') || $user->can('manage-system');
     }
 }

@@ -21,7 +21,7 @@ class EditResidentProfile extends EditRecord
                 ->label('Approve Verification')
                 ->icon('heroicon-o-check-circle')
                 ->color('success')
-                ->visible(fn () => auth()->user()->can('verify_user') && $this->record->status === 'pending')
+                ->visible(fn () => auth()->user()->can('verify-residents') && $this->record->status === 'pending')
                 ->requiresConfirmation()
                 ->action(function () {
                     $this->record->update([
@@ -53,7 +53,7 @@ class EditResidentProfile extends EditRecord
                 ->label('Reject Verification')
                 ->icon('heroicon-o-x-circle')
                 ->color('danger')
-                ->visible(fn () => auth()->user()->can('verify_user') && $this->record->status === 'pending')
+                ->visible(fn () => auth()->user()->can('verify-residents') && $this->record->status === 'pending')
                 ->form([
                     \Filament\Forms\Components\Select::make('rejection_reason')
                         ->label('Rejection Reason')
@@ -92,6 +92,54 @@ class EditResidentProfile extends EditRecord
                     ]);
 
                     event(new ResidentVerificationStatusUpdated('rejected', $data['rejection_reason'], $data['rejection_message'] ?? null, $this->record->user_id));
+
+                    $this->redirect($this->getResource()::getUrl('index'));
+                }),
+
+            Action::make('override_moderation')
+                ->label('Override Moderation')
+                ->icon('heroicon-o-shield-exclamation')
+                ->color('warning')
+                ->visible(fn () => auth()->user()->can('override-moderation'))
+                ->form([
+                    \Filament\Forms\Components\Select::make('status')
+                        ->label('New Status')
+                        ->options([
+                            'approved' => 'Approved',
+                            'rejected' => 'Rejected',
+                            'pending' => 'Pending',
+                        ])
+                        ->required(),
+                    \Filament\Forms\Components\Textarea::make('reason')
+                        ->label('Reason for Override')
+                        ->required(),
+                ])
+                ->action(function (array $data) {
+                    $oldStatus = $this->record->status;
+                    $newStatus = $data['status'];
+                    $isVerified = $newStatus === 'approved';
+
+                    $this->record->update([
+                        'status' => $newStatus,
+                        'is_verified' => $isVerified,
+                        'verified_by' => auth()->id(),
+                        'verified_at' => now(),
+                    ]);
+
+                    ModerationLog::create([
+                        'action' => 'override_resident_moderation',
+                        'target_type' => \App\Models\User::class,
+                        'target_id' => $this->record->user_id,
+                        'moderator_id' => auth()->id(),
+                        'reason' => 'Moderation overridden from detailed view: ' . $data['reason'],
+                        'metadata' => json_encode([
+                            'previous_status' => $oldStatus,
+                            'new_status' => $newStatus,
+                            'reason' => $data['reason'],
+                        ]),
+                    ]);
+
+                    event(new ResidentVerificationStatusUpdated($newStatus, null, $data['reason'], $this->record->user_id));
 
                     $this->redirect($this->getResource()::getUrl('index'));
                 }),

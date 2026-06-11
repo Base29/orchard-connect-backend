@@ -12,26 +12,26 @@ class DirectoryListingPolicy
 
     public function viewAny(User $user): bool
     {
-        return $user->can('view_any_directory_listing');
+        return $user->can('verify-businesses') || $user->can('review-listings') || $user->can('manage-system');
     }
 
     public function view(User $user, DirectoryListing $directoryListing): bool
     {
-        return $user->can('view_directory_listing');
+        return $user->can('verify-businesses') || $user->can('review-listings') || $user->can('manage-system');
     }
 
     public function create(User $user): bool
     {
-        return $user->can('create_directory_listing');
+        return $user->can('verify-businesses') || $user->can('review-listings') || $user->can('manage-system');
     }
 
     public function update(User $user, DirectoryListing $directoryListing): bool
     {
-        return $user->can('update_directory_listing');
+        return $user->can('verify-businesses') || $user->can('review-listings') || $user->can('manage-system');
     }
 
     public function delete(User $user, DirectoryListing $directoryListing): bool
     {
-        return $user->can('delete_directory_listing');
+        return $user->can('verify-businesses') || $user->can('review-listings') || $user->can('manage-system');
     }
 }

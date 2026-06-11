@@ -12,26 +12,26 @@ class CommentPolicy
 
     public function viewAny(User $user): bool
     {
-        return $user->can('view_any_comment');
+        return $user->isActive();
     }
 
     public function view(User $user, Comment $comment): bool
     {
-        return $user->can('view_comment');
+        return $user->isActive();
     }
 
     public function create(User $user): bool
     {
-        return $user->can('create_comment');
+        return $user->isActive();
     }
 
     public function update(User $user, Comment $comment): bool
     {
-        return $user->can('update_comment');
+        return $user->id === $comment->user_id || $user->can('moderate-comments') || $user->can('override-moderation') || $user->can('manage-system');
     }
 
     public function delete(User $user, Comment $comment): bool
     {
-        return $user->can('delete_comment');
+        return $user->id === $comment->user_id || $user->can('moderate-comments') || $user->can('override-moderation') || $user->can('manage-system');
     }
 }

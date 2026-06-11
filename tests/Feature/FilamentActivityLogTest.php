@@ -36,7 +36,7 @@ class FilamentActivityLogTest extends TestCase
     public function test_moderators_cannot_access_activity_logs(): void
     {
         $moderator = User::factory()->create(['status' => 'active']);
-        $moderator->assignRole('Feed Moderator');
+        $moderator->assignRole('content-moderator');
 
         $this->actingAs($moderator)
             ->get('/admin/activities')
@@ -49,7 +49,7 @@ class FilamentActivityLogTest extends TestCase
     public function test_super_admin_can_access_activity_logs(): void
     {
         $admin = User::factory()->create(['status' => 'active']);
-        $admin->assignRole('Super Admin');
+        $admin->assignRole('superadmin');
 
         $this->actingAs($admin)
             ->get('/admin/activities')
@@ -62,7 +62,7 @@ class FilamentActivityLogTest extends TestCase
     public function test_activity_logs_are_recorded_and_listed(): void
     {
         $admin = User::factory()->create(['status' => 'active']);
-        $admin->assignRole('Super Admin');
+        $admin->assignRole('superadmin');
 
         // Trigger created event by creating a post
         $post = Post::create([

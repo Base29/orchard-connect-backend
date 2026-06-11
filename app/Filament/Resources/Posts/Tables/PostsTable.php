@@ -59,7 +59,7 @@ class PostsTable
                     ->label('Resolve / Approve')
                     ->icon('heroicon-o-check')
                     ->color('success')
-                    ->visible(fn ($record) => auth()->user()->can('moderate_post') && ($record->flags_count > 0 || $record->status === 'flagged'))
+                    ->visible(fn ($record) => auth()->user()->can('moderate-comments') && ($record->flags_count > 0 || $record->status === 'flagged'))
                     ->action(function ($record) {
                         $oldFlags = $record->flags_count;
                         $oldStatus = $record->status;
@@ -86,7 +86,7 @@ class PostsTable
                     ->label('Moderate / Delete')
                     ->icon('heroicon-o-trash')
                     ->color('danger')
-                    ->visible(fn ($record) => auth()->user()->can('moderate_post') && $record->status !== 'moderated')
+                    ->visible(fn ($record) => auth()->user()->can('moderate-comments') && $record->status !== 'moderated')
                     ->form([
                         \Filament\Forms\Components\Textarea::make('reason')
                             ->label('Reason for Moderation/Deletion')

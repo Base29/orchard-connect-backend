@@ -12,26 +12,26 @@ class PostPolicy
 
     public function viewAny(User $user): bool
     {
-        return $user->can('view_any_post');
+        return $user->isActive();
     }
 
     public function view(User $user, Post $post): bool
     {
-        return $user->can('view_post');
+        return $user->isActive();
     }
 
     public function create(User $user): bool
     {
-        return $user->can('create_post');
+        return $user->isActive();
     }
 
     public function update(User $user, Post $post): bool
     {
-        return $user->can('update_post');
+        return $user->id === $post->user_id || $user->can('moderate-comments') || $user->can('override-moderation') || $user->can('manage-system');
     }
 
     public function delete(User $user, Post $post): bool
     {
-        return $user->can('delete_post');
+        return $user->id === $post->user_id || $user->can('moderate-comments') || $user->can('override-moderation') || $user->can('manage-system');
     }
 }

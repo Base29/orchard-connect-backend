@@ -22,7 +22,7 @@ class DocumentProxyController extends Controller
     {
         // Restrict access to active administrative users only
         $user = auth()->user();
-        if (!$user || !$user->isActive() || !$user->hasAnyRole(['Super Admin', 'Feed Moderator', 'Marketplace Moderator'])) {
+        if (!$user || !$user->isActive() || !$user->can('verify-residents')) {
             abort(403, 'Unauthorized access to administrative documents.');
         }
 
