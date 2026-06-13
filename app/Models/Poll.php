@@ -71,4 +71,41 @@ class Poll extends Model
         $now = now();
         return $this->status === 'active' && $this->start_at <= $now && $this->end_at >= $now;
     }
+
+    protected static function booted()
+    {
+        static::created(function ($poll) {
+            if ($poll->status === 'active') {
+                $poll->sendNotifications();
+            }
+        });
+
+        static::updated(function ($poll) {
+            if ($poll->wasChanged('status') && $poll->status === 'active') {
+                $poll->sendNotifications();
+            }
+        });
+    }
+
+    public function sendNotifications()
+    {
+        try {
+            $residents = User::whereHas('residentProfile', function ($query) {
+                $query->where('is_verified', true)->orWhere('status', 'approved');
+            })
+            ->where('id', '!=', $this->user_id) // don't notify creator
+            ->get();
+
+            foreach ($residents as $resident) {
+                $resident->notify(new \App\Notifications\GeneralNotification(
+                    'New Community Poll',
+                    "A new poll has been proposed: \"{$this->title}\"",
+                    '/dashboard/polls',
+                    ['type' => 'new_poll', 'poll_id' => $this->id]
+                ));
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Poll notification dispatch failed: ' . $e->getMessage());
+        }
+    }
 }

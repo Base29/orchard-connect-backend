@@ -65,4 +65,39 @@ class News extends Model
     {
         return $this->hasMany(Comment::class);
     }
+
+    protected static function booted()
+    {
+        static::created(function ($news) {
+            if ($news->status === 'published') {
+                $news->sendNotifications();
+            }
+        });
+
+        static::updated(function ($news) {
+            if ($news->wasChanged('status') && $news->status === 'published') {
+                $news->sendNotifications();
+            }
+        });
+    }
+
+    public function sendNotifications()
+    {
+        try {
+            $residents = User::whereHas('residentProfile', function ($query) {
+                $query->where('is_verified', true)->orWhere('status', 'approved');
+            })->get();
+
+            foreach ($residents as $resident) {
+                $resident->notify(new \App\Notifications\GeneralNotification(
+                    'New Orchard News',
+                    "New article posted: \"{$this->title}\"",
+                    "/dashboard/news/{$this->id}",
+                    ['type' => 'new_news', 'news_id' => $this->id]
+                ));
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('News notification dispatch failed: ' . $e->getMessage());
+        }
+    }
 }

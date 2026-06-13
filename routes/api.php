@@ -228,6 +228,21 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
             ]
         );
 
+        // Notify admin staff
+        try {
+            $staff = \App\Models\User::role(['superadmin', 'community-admin'])->get();
+            foreach ($staff as $admin) {
+                $admin->notify(new \App\Notifications\GeneralNotification(
+                    'Resident Verification Submitted',
+                    "{$user->name} has submitted proof of residency for verification.",
+                    '/admin/resident-profiles',
+                    ['type' => 'moderation_verification', 'user_id' => $user->id]
+                ));
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Staff verification notification failed: ' . $e->getMessage());
+        }
+
         return response()->json([
             'message' => 'Profile updated successfully. Awaiting administration review.',
             'profile' => $profile
@@ -413,6 +428,27 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
                 }
             });
 
+            // Notify content moderators
+            try {
+                $staff = \App\Models\User::role(['superadmin', 'community-admin', 'content-moderator'])->get();
+                $isAutoFlagged = $post->flags_count >= 5;
+                $title = $isAutoFlagged ? 'Post Auto-Flagged & Hidden' : 'Post Flagged';
+                $message = $isAutoFlagged 
+                    ? "A post by {$post->user->name} has reached the report threshold and was auto-flagged and hidden."
+                    : "A post by {$post->user->name} was flagged by a resident (Reason: " . str_replace('_', ' ', $validated['reason']) . ").";
+
+                foreach ($staff as $mod) {
+                    $mod->notify(new \App\Notifications\GeneralNotification(
+                        $title,
+                        $message,
+                        '/admin/posts',
+                        ['type' => 'moderation_post_flagged', 'post_id' => $post->id, 'auto_flagged' => $isAutoFlagged]
+                    ));
+                }
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Staff post flagged notification failed: ' . $e->getMessage());
+            }
+
             return response()->json([
                 'message' => 'Post flagged successfully.',
                 'flags_count' => $post->flags_count,
@@ -474,6 +510,21 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
             $listing = $request->user()->listings()->create(
                 array_merge($validated, ['status' => 'pending'])
             );
+
+            // Notify marketplace moderators
+            try {
+                $staff = \App\Models\User::role(['superadmin', 'community-admin', 'marketplace-moderator'])->get();
+                foreach ($staff as $mod) {
+                    $mod->notify(new \App\Notifications\GeneralNotification(
+                        'New Listing Submitted',
+                        "Classified listing \"{$listing->title}\" submitted by {$request->user()->name} is pending review.",
+                        '/admin/listings',
+                        ['type' => 'moderation_listing_submitted', 'listing_id' => $listing->id]
+                    ));
+                }
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Staff listing notification failed: ' . $e->getMessage());
+            }
 
             return response()->json($listing, 201);
         });
@@ -634,6 +685,27 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
                     ]);
                 }
             });
+
+            // Notify marketplace moderators
+            try {
+                $staff = \App\Models\User::role(['superadmin', 'community-admin', 'marketplace-moderator'])->get();
+                $isAutoFlagged = $listing->flags_count >= 5;
+                $title = $isAutoFlagged ? 'Listing Auto-Flagged & Hidden' : 'Listing Flagged';
+                $message = $isAutoFlagged 
+                    ? "Listing \"{$listing->title}\" reached the report threshold and was auto-flagged and hidden."
+                    : "Listing \"{$listing->title}\" was flagged by a resident (Reason: " . str_replace('_', ' ', $validated['reason']) . ").";
+
+                foreach ($staff as $mod) {
+                    $mod->notify(new \App\Notifications\GeneralNotification(
+                        $title,
+                        $message,
+                        '/admin/listings',
+                        ['type' => 'moderation_listing_flagged', 'listing_id' => $listing->id, 'auto_flagged' => $isAutoFlagged]
+                    ));
+                }
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Staff listing flagged notification failed: ' . $e->getMessage());
+            }
 
             return response()->json([
                 'message' => 'Listing flagged successfully.',
@@ -818,5 +890,12 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
         Route::put('/{poll}', [\App\Http\Controllers\PollController::class, 'update']);
         Route::post('/{poll}/vote', [\App\Http\Controllers\PollController::class, 'vote']);
         Route::post('/{poll}/suspend', [\App\Http\Controllers\PollController::class, 'suspend']);
+    });
+
+    // Resident Notifications
+    Route::prefix('notifications')->group(function () {
+        Route::get('/', [\App\Http\Controllers\NotificationController::class, 'index']);
+        Route::post('/{id}/read', [\App\Http\Controllers\NotificationController::class, 'markAsRead']);
+        Route::post('/read-all', [\App\Http\Controllers\NotificationController::class, 'markAllAsRead']);
     });
 });

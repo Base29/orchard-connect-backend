@@ -83,4 +83,39 @@ class Announcement extends Model
     {
         return $this->belongsTo(User::class, 'author_id');
     }
+
+    protected static function booted()
+    {
+        static::created(function ($announcement) {
+            if ($announcement->status === 'published') {
+                $announcement->sendNotifications();
+            }
+        });
+
+        static::updated(function ($announcement) {
+            if ($announcement->wasChanged('status') && $announcement->status === 'published') {
+                $announcement->sendNotifications();
+            }
+        });
+    }
+
+    public function sendNotifications()
+    {
+        try {
+            $residents = User::whereHas('residentProfile', function ($query) {
+                $query->where('is_verified', true)->orWhere('status', 'approved');
+            })->get();
+
+            foreach ($residents as $resident) {
+                $resident->notify(new \App\Notifications\GeneralNotification(
+                    'New Announcement',
+                    "A new announcement was posted: \"{$this->title}\"",
+                    "/dashboard/announcements/{$this->id}",
+                    ['type' => 'new_announcement', 'announcement_id' => $this->id]
+                ));
+            }
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Announcement notification dispatch failed: ' . $e->getMessage());
+        }
+    }
 }

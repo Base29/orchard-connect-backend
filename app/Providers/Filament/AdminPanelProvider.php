@@ -34,6 +34,7 @@ class AdminPanelProvider extends PanelProvider
             ->favicon(asset('favicon.ico'))
             ->font('Plus Jakarta Sans')
             ->sidebarCollapsibleOnDesktop()
+            ->databaseNotifications()
             ->colors([
                 'danger' => Color::Rose,
                 'gray' => Color::Zinc,
