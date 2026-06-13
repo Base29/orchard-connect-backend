@@ -33,6 +33,17 @@ class UsersTable
                     ])
                     ->searchable()
                     ->sortable(),
+                TextColumn::make('roles.name')
+                    ->label('Roles')
+                    ->badge()
+                    ->colors([
+                        'warning' => 'superadmin',
+                        'success' => 'community-admin',
+                        'info' => 'content-moderator',
+                        'primary' => 'marketplace-moderator',
+                    ])
+                    ->searchable()
+                    ->default('-'),
                 TextColumn::make('residentProfile.phase')
                     ->label('Phase')
                     ->sortable()
@@ -109,7 +120,11 @@ class UsersTable
                     ->label('Ban')
                     ->icon('heroicon-o-no-symbol')
                     ->color('danger')
-                    ->visible(fn ($record) => auth()->user()->can('manage-system') && $record->status !== 'banned')
+                    ->visible(fn ($record) => 
+                        $record->status !== 'banned' && 
+                        !$record->hasRole('superadmin') && 
+                        (auth()->user()->can('manage-system') || auth()->user()->can('assign-moderator-roles'))
+                    )
                     ->form([
                         \Filament\Forms\Components\Textarea::make('reason')
                             ->label('Reason for Ban')

@@ -11,6 +11,11 @@ class MaintenanceModeWidget extends Widget
 {
     protected string $view = 'filament.widgets.maintenance-mode-widget';
 
+    public static function canView(): bool
+    {
+        return auth()->user()?->hasRole('superadmin') ?? false;
+    }
+
     protected static ?int $sort = -10;
 
     protected int|string|array $columnSpan = 1;

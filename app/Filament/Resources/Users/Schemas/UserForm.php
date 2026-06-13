@@ -38,8 +38,22 @@ class UserForm
                         Select::make('roles')
                             ->label('Security Roles')
                             ->multiple()
-                            ->relationship('roles', 'name')
-                            ->preload(),
+                            ->relationship(
+                                name: 'roles',
+                                titleAttribute: 'name',
+                                modifyQueryUsing: function ($query) {
+                                    $user = auth()->user();
+                                    if ($user->hasRole('superadmin')) {
+                                        return $query;
+                                    }
+                                    if ($user->hasRole('community-admin')) {
+                                        return $query->whereIn('name', ['content-moderator', 'marketplace-moderator']);
+                                    }
+                                    return $query->where('id', null);
+                                }
+                            )
+                            ->preload()
+                            ->disabled(fn (? \App\Models\User $record) => $record && !auth()->user()->hasRole('superadmin') && ($record->hasRole('superadmin') || $record->hasRole('community-admin'))),
                         Textarea::make('avatar_url')
                             ->columnSpanFull()
                             ->rows(2),

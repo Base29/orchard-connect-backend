@@ -225,3 +225,51 @@
         box-shadow: 0 15px 25px -5px rgba(0, 0, 0, 0.3) !important;
     }
 </style>
+
+<script>
+    document.addEventListener('livewire:init', () => {
+        // Intercept validation errors and system failures globally in the Filament dashboard
+        Livewire.hook('commit', ({ component, succeed, fail }) => {
+            succeed(({ snapshot, effects }) => {
+                // If there are validation errors returned in the effects, trigger a Filament toast notification
+                if (effects && effects.errors && Object.keys(effects.errors).length > 0) {
+                    let messages = [];
+                    Object.entries(effects.errors).forEach(([field, errs]) => {
+                        if (Array.isArray(errs)) {
+                            messages.push(...errs);
+                        } else if (typeof errs === 'string') {
+                            messages.push(errs);
+                        }
+                    });
+
+                    if (typeof FilamentNotification !== 'undefined') {
+                        new FilamentNotification()
+                            .title('Validation Failed')
+                            .body(messages.join(' ') || 'Please correct the validation errors in the form.')
+                            .danger()
+                            .send();
+                    }
+                }
+            });
+
+            fail(({ status, content, preventDefault }) => {
+                let message = 'An unexpected server error occurred.';
+                if (status === 403) {
+                    message = 'You are not authorized to perform this action.';
+                } else if (status === 419) {
+                    message = 'Your session has expired. Please refresh the page.';
+                } else if (status === 422) {
+                    message = 'Validation failed.';
+                }
+
+                if (typeof FilamentNotification !== 'undefined') {
+                    new FilamentNotification()
+                        .title('System Error (' + status + ')')
+                        .body(message)
+                        .danger()
+                        .send();
+                }
+            });
+        });
+    });
+</script>

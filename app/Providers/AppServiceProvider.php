@@ -36,11 +36,19 @@ class AppServiceProvider extends ServiceProvider
             return $user->hasRole('superadmin') ? true : null;
         });
 
-        // Register Spatie Model Policies explicitly
+        // Register Spatie and Application Model Policies explicitly
         Gate::policy(Role::class, RolePolicy::class);
         Gate::policy(Permission::class, PermissionPolicy::class);
         Gate::policy(Announcement::class, AnnouncementPolicy::class);
         Gate::policy(\App\Models\ResidentProfile::class, \App\Policies\ResidentProfilePolicy::class);
         Gate::policy(\App\Models\Poll::class, \App\Policies\PollPolicy::class);
+        Gate::policy(\App\Models\User::class, \App\Policies\UserPolicy::class);
+        Gate::policy(\App\Models\News::class, \App\Policies\NewsPolicy::class);
+        Gate::policy(\App\Models\Post::class, \App\Policies\PostPolicy::class);
+        Gate::policy(\App\Models\Comment::class, \App\Policies\CommentPolicy::class);
+        Gate::policy(\App\Models\Listing::class, \App\Policies\ListingPolicy::class);
+        Gate::policy(\App\Models\DirectoryListing::class, \App\Policies\DirectoryListingPolicy::class);
+        Gate::policy(\App\Models\DirectoryCategory::class, \App\Policies\DirectoryCategoryPolicy::class);
+        Gate::policy(\App\Models\ModerationLog::class, \App\Policies\ModerationLogPolicy::class);
     }
 }

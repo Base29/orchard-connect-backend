@@ -26,11 +26,19 @@ class UserPolicy
 
     public function update(User $user, User $model): bool
     {
-        return $user->can('manage-system') || $user->can('assign-admin-roles');
+        if ($model->hasRole('superadmin') && !$user->hasRole('superadmin')) {
+            return false;
+        }
+
+        return $user->can('manage-system') || $user->can('assign-admin-roles') || $user->can('assign-moderator-roles');
     }
 
     public function delete(User $user, User $model): bool
     {
+        if ($model->hasRole('superadmin') && !$user->hasRole('superadmin')) {
+            return false;
+        }
+
         return $user->can('manage-system') || $user->can('assign-admin-roles');
     }
 }
