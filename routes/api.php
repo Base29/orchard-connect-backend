@@ -990,4 +990,15 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
         Route::post('/{id}/read', [\App\Http\Controllers\NotificationController::class, 'markAsRead'])->middleware('verified.email');
         Route::post('/read-all', [\App\Http\Controllers\NotificationController::class, 'markAllAsRead'])->middleware('verified.email');
     });
+
+    // Resident Support Tickets
+    Route::get('/support/tickets', [\App\Http\Controllers\SupportTicketController::class, 'index']);
 });
+
+// Public Support Ticket Routes
+Route::middleware(\App\Http\Middleware\CheckMaintenanceMode::class)->group(function () {
+    Route::post('/support/tickets', [\App\Http\Controllers\SupportTicketController::class, 'store'])
+        ->middleware('throttle:3,60');
+    Route::get('/support/tickets/track/{tracking_id}', [\App\Http\Controllers\SupportTicketController::class, 'track']);
+});
+

@@ -50,6 +50,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(\App\Models\DirectoryListing::class, \App\Policies\DirectoryListingPolicy::class);
         Gate::policy(\App\Models\DirectoryCategory::class, \App\Policies\DirectoryCategoryPolicy::class);
         Gate::policy(\App\Models\ModerationLog::class, \App\Policies\ModerationLogPolicy::class);
+        Gate::policy(\App\Models\SupportTicket::class, \App\Policies\SupportTicketPolicy::class);
 
         // Register Notifications Event Listener
         \Illuminate\Support\Facades\Event::listen(

@@ -45,7 +45,7 @@ class RolesAndPermissionsSeeder extends Seeder
         ];
 
         // Clean up legacy/redundant permissions and roles from the database
-        $allowedRoles = ['superadmin', 'community-admin', 'marketplace-moderator', 'content-moderator'];
+        $allowedRoles = ['superadmin', 'community-admin', 'marketplace-moderator', 'content-moderator', 'support-staff'];
         Permission::whereNotIn('name', $permissions)->delete();
         Role::whereNotIn('name', $allowedRoles)->delete();
 
@@ -171,6 +171,22 @@ class RolesAndPermissionsSeeder extends Seeder
             $this->command->info('Created Marketplace Moderator: market_moderator@orchard.com (password: password123)');
         } else {
             $marketModUser->assignRole($marketModRole);
+        }
+
+        // Support Staff test user
+        $supportStaffRole = Role::findOrCreate('support-staff', 'web');
+        $supportStaffUser = User::where('email', 'support_staff@orchard.com')->first();
+        if (!$supportStaffUser) {
+            $supportStaffUser = User::create([
+                'name' => 'Support Staff User',
+                'email' => 'support_staff@orchard.com',
+                'password' => bcrypt('password123'),
+                'status' => 'active',
+            ]);
+            $supportStaffUser->assignRole($supportStaffRole);
+            $this->command->info('Created Support Staff: support_staff@orchard.com (password: password123)');
+        } else {
+            $supportStaffUser->assignRole($supportStaffRole);
         }
 
         // 4. Seed Default Announcements
