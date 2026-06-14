@@ -191,4 +191,36 @@ class FilamentUserTest extends TestCase
         $this->assertTrue($superadmin1->can('update', $superadmin2));
         $this->assertTrue($superadmin1->can('delete', $superadmin2));
     }
+
+    public function test_superadmin_can_verify_user_email_via_table_action(): void
+    {
+        $superadmin = User::where('email', 'me@imfaisal.pro')->first();
+        if (!$superadmin) {
+            $superadmin = User::factory()->create();
+            $superadmin->assignRole('superadmin');
+        }
+
+        $user = User::factory()->unverified()->create();
+
+        $lw = Livewire::actingAs($superadmin)
+            ->test(\App\Filament\Resources\Users\Pages\ListUsers::class);
+
+        // Verify table action visibility
+        $lw->assertTableActionVisible('verify_email', $user);
+
+        // Call the action
+        $lw->callTableAction('verify_email', $user);
+
+        $lw->assertHasNoTableActionErrors();
+
+        $this->assertNotNull($user->fresh()->email_verified_at);
+        $this->assertDatabaseHas('moderation_logs', [
+            'action' => 'verify_email',
+            'target_id' => $user->id,
+            'moderator_id' => $superadmin->id,
+        ]);
+
+        // Action should now be hidden since email is verified
+        $lw->assertTableActionHidden('verify_email', $user);
+    }
 }

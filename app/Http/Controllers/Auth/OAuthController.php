@@ -76,6 +76,12 @@ class OAuthController extends Controller
                     'password' => null, // Social-only account initially
                     'status' => 'active',
                 ]);
+
+                try {
+                    $user->sendCustomEmailVerificationNotification();
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::error('OAuth verification email failed: ' . $e->getMessage());
+                }
             }
 
             // Link new social provider account

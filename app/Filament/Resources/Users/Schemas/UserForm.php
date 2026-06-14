@@ -35,6 +35,10 @@ class UserForm
                             ])
                             ->required()
                             ->default('active'),
+                        DateTimePicker::make('email_verified_at')
+                            ->label('Email Verified At')
+                            ->disabled(fn () => !auth()->user()->hasRole('superadmin'))
+                            ->placeholder('Not verified'),
                         Select::make('roles')
                             ->label('Security Roles')
                             ->multiple()

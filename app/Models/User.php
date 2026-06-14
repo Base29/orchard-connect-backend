@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -15,7 +16,7 @@ use Spatie\Permission\Traits\HasRoles;
 use Spatie\Activitylog\Models\Concerns\LogsActivity;
 use Spatie\Activitylog\Support\LogOptions;
 
-class User extends Authenticatable implements FilamentUser
+class User extends Authenticatable implements FilamentUser, MustVerifyEmail
 {
     use HasApiTokens, HasFactory, Notifiable, HasUuids, HasRoles, LogsActivity;
 
@@ -177,5 +178,21 @@ class User extends Authenticatable implements FilamentUser
             // Fallback in case roles tables are not seeded yet or relation fails
         }
         return $array;
+    }
+
+    /**
+     * Send custom email verification notification.
+     */
+    public function sendCustomEmailVerificationNotification(): void
+    {
+        $verificationUrl = \Illuminate\Support\Facades\URL::temporarySignedRoute(
+            'verification.verify',
+            now()->addMinutes(60),
+            ['id' => $this->id, 'hash' => sha1($this->email)]
+        );
+
+        \Illuminate\Support\Facades\Mail::to($this->email)->send(
+            new \App\Mail\VerifyEmailMailable($this, $verificationUrl)
+        );
     }
 }

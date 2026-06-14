@@ -52,6 +52,11 @@ class UsersTable
                     ->label('Block')
                     ->sortable()
                     ->default('-'),
+                IconColumn::make('email_verified_at')
+                    ->label('Email Verified')
+                    ->boolean()
+                    ->state(fn ($record) => $record->email_verified_at !== null)
+                    ->sortable(),
                 IconColumn::make('residentProfile.is_verified')
                     ->label('Verified')
                     ->boolean()
@@ -89,6 +94,27 @@ class UsersTable
                             'moderator_id' => auth()->id(),
                             'reason' => 'Resident profile verified by staff.',
                             'metadata' => json_encode(['previous_is_verified' => false]),
+                        ]);
+                    }),
+
+                Action::make('verify_email')
+                    ->label('Verify Email')
+                    ->icon('heroicon-o-envelope')
+                    ->color('success')
+                    ->visible(fn ($record) => auth()->user()->hasRole('superadmin') && is_null($record->email_verified_at))
+                    ->requiresConfirmation()
+                    ->action(function ($record) {
+                        $record->markEmailAsVerified();
+
+                        event(new \Illuminate\Auth\Events\Verified($record));
+
+                        ModerationLog::create([
+                            'action' => 'verify_email',
+                            'target_type' => get_class($record),
+                            'target_id' => $record->id,
+                            'moderator_id' => auth()->id(),
+                            'reason' => 'User email verified by superadmin via dashboard.',
+                            'metadata' => json_encode(['email' => $record->email]),
                         ]);
                     }),
 

@@ -43,6 +43,12 @@ Route::middleware(\App\Http\Middleware\CheckMaintenanceMode::class)->prefix('aut
             'status' => 'active',
         ]);
 
+        try {
+            $user->sendCustomEmailVerificationNotification();
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Verification email failed: ' . $e->getMessage());
+        }
+
         $token = $user->createToken('community_auth_token')->plainTextToken;
 
         return response()->json([
@@ -84,6 +90,28 @@ Route::middleware(\App\Http\Middleware\CheckMaintenanceMode::class)->prefix('aut
     });
 });
 
+Route::get('/email/verify/{id}/{hash}', function (Request $request) {
+    if (!$request->hasValidSignature()) {
+        $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
+        return redirect($frontendUrl . '/auth/login?error=invalid_signature');
+    }
+
+    $user = User::findOrFail($request->route('id'));
+
+    if (!hash_equals((string) $request->route('hash'), sha1($user->email))) {
+        $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
+        return redirect($frontendUrl . '/auth/login?error=invalid_signature');
+    }
+
+    if (!$user->hasVerifiedEmail()) {
+        $user->markEmailAsVerified();
+        event(new \Illuminate\Auth\Events\Verified($user));
+    }
+
+    $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
+    return redirect($frontendUrl . '/dashboard?email_verified=true');
+})->name('verification.verify');
+
 // Authenticated Resident Routes
 Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::class])->group(function () {
     
@@ -120,7 +148,24 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
             'is_locked' => $isLocked,
         ]);
     });
-    
+
+    // Resend Verification Email
+    Route::post('/email/verification-notification', function (Request $request) {
+        $user = $request->user();
+
+        if ($user->hasVerifiedEmail()) {
+            return response()->json(['message' => 'Email is already verified.'], 400);
+        }
+
+        try {
+            $user->sendCustomEmailVerificationNotification();
+            return response()->json(['message' => 'Verification link sent.']);
+        } catch (\Exception $e) {
+            \Illuminate\Support\Facades\Log::error('Resend verification email failed: ' . $e->getMessage());
+            return response()->json(['message' => 'Failed to send verification email. Please try again later.'], 500);
+        }
+    });
+
     // Resident stats for dashboard
     Route::get('/user/stats', function (Request $request) {
         $user = $request->user();
@@ -277,7 +322,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
     });
 
     // Media Upload API for Posts and Marketplace listings
-    Route::post('/media/upload', [\App\Http\Controllers\MediaUploadController::class, 'upload']);
+    Route::post('/media/upload', [\App\Http\Controllers\MediaUploadController::class, 'upload'])->middleware('verified.email');
 
     // Private WebSockets authorization endpoint secured via Sanctum
     Route::post('/broadcasting/auth', function (Request $request) {
@@ -337,7 +382,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
             }
 
             return response()->json($loadedPost, 201);
-        });
+        })->middleware('verified.email');
 
         // Toggle Post Likes
         Route::post('/{post}/like', function (Request $request, \App\Models\Post $post) {
@@ -370,7 +415,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
                 'liked' => $liked,
                 'likes_count' => $likesCount
             ]);
-        });
+        })->middleware('verified.email');
 
         // Threaded Comments
         Route::post('/{post}/comments', function (Request $request, \App\Models\Post $post) {
@@ -405,7 +450,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
             }
 
             return response()->json($loadedComment, 201);
-        });
+        })->middleware('verified.email');
 
         // Get comments for a post
         Route::get('/{post}/comments', function (\App\Models\Post $post) {
@@ -501,7 +546,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
                 'flags_count' => $post->flags_count,
                 'status' => $post->status,
             ]);
-        });
+        })->middleware('verified.email');
     });
 
     Route::prefix('listings')->group(function () {
@@ -574,7 +619,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
             }
 
             return response()->json($listing, 201);
-        });
+        })->middleware('verified.email');
 
         // Get single listing details
         Route::get('/{listing}', function (Request $request, \App\Models\Listing $listing) {
@@ -611,7 +656,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
 
             $listing->delete();
             return response()->json(['message' => 'Listing deleted successfully.']);
-        });
+        })->middleware('verified.email');
 
         // Change listing status (e.g. mark as sold)
         Route::patch('/{listing}/status', function (Request $request, \App\Models\Listing $listing) {
@@ -643,7 +688,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
             }
 
             return response()->json($listing);
-        });
+        })->middleware('verified.email');
 
         // Get listing comments
         Route::get('/{listing}/comments', function (\App\Models\Listing $listing) {
@@ -673,7 +718,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
             ]);
 
             return response()->json($comment->load(['user.residentProfile', 'user.roles']), 201);
-        });
+        })->middleware('verified.email');
 
         // Flag Listing
         Route::post('/{listing}/flag', function (Request $request, \App\Models\Listing $listing) {
@@ -759,7 +804,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
                 'flags_count' => $listing->flags_count,
                 'status' => $listing->status,
             ]);
-        });
+        })->middleware('verified.email');
     });
 
     // Local Directory
@@ -809,7 +854,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
         );
 
         return response()->json($review->load(['user.residentProfile', 'user.roles']), 201);
-    });
+    })->middleware('verified.email');
 
     // Delete review
     Route::delete('/directory/reviews/{review}', function (Request $request, \App\Models\DirectoryReview $review) {
@@ -835,7 +880,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
 
         $review->delete();
         return response()->json(['message' => 'Review deleted successfully.']);
-    });
+    })->middleware('verified.email');
 
     // Phone Directory
     Route::get('/phone-directory', function (Request $request) {
@@ -927,22 +972,22 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
             ]);
 
             return response()->json($comment->load(['user.residentProfile', 'user.roles']), 201);
-        });
+        })->middleware('verified.email');
     });
 
     // Resident Polls
     Route::prefix('polls')->group(function () {
         Route::get('/', [\App\Http\Controllers\PollController::class, 'index']);
-        Route::post('/', [\App\Http\Controllers\PollController::class, 'store']);
-        Route::put('/{poll}', [\App\Http\Controllers\PollController::class, 'update']);
-        Route::post('/{poll}/vote', [\App\Http\Controllers\PollController::class, 'vote']);
-        Route::post('/{poll}/suspend', [\App\Http\Controllers\PollController::class, 'suspend']);
+        Route::post('/', [\App\Http\Controllers\PollController::class, 'store'])->middleware('verified.email');
+        Route::put('/{poll}', [\App\Http\Controllers\PollController::class, 'update'])->middleware('verified.email');
+        Route::post('/{poll}/vote', [\App\Http\Controllers\PollController::class, 'vote'])->middleware('verified.email');
+        Route::post('/{poll}/suspend', [\App\Http\Controllers\PollController::class, 'suspend'])->middleware('verified.email');
     });
 
     // Resident Notifications
     Route::prefix('notifications')->group(function () {
         Route::get('/', [\App\Http\Controllers\NotificationController::class, 'index']);
-        Route::post('/{id}/read', [\App\Http\Controllers\NotificationController::class, 'markAsRead']);
-        Route::post('/read-all', [\App\Http\Controllers\NotificationController::class, 'markAllAsRead']);
+        Route::post('/{id}/read', [\App\Http\Controllers\NotificationController::class, 'markAsRead'])->middleware('verified.email');
+        Route::post('/read-all', [\App\Http\Controllers\NotificationController::class, 'markAllAsRead'])->middleware('verified.email');
     });
 });
