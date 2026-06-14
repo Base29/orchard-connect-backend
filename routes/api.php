@@ -166,6 +166,33 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
         ]);
     });
 
+    // Search verified residents for mentions
+    Route::get('/residents/search-mentions', function (Request $request) {
+        if (!$request->user()->residentProfile || !$request->user()->residentProfile->is_verified) {
+            return response()->json(['message' => 'Action locked. Residency verification required.'], 403);
+        }
+
+        $search = $request->query('query', '');
+
+        $query = \App\Models\User::whereHas('residentProfile', function ($q) {
+            $q->whereRaw('is_verified = true');
+        });
+
+        if (!empty($search)) {
+            if (config('database.default') === 'sqlite') {
+                $query->where('name', 'like', '%' . $search . '%');
+            } else {
+                $query->where('name', 'ilike', '%' . $search . '%');
+            }
+        }
+
+        $residents = $query->with('residentProfile:user_id,phase,block')
+            ->take(10)
+            ->get(['id', 'name', 'avatar_url']);
+
+        return response()->json($residents);
+    });
+
     // Complete Resident Profile Setup
     Route::post('/resident/profile', function (Request $request) {
         $user = $request->user();
@@ -295,6 +322,12 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
                 'status' => 'published',
             ]);
 
+            try {
+                \App\Services\MentionService::processMentions($post->content, $post, $request->user());
+            } catch (\Exception $e) {
+                logger()->error('Processing mentions on post creation failed: ' . $e->getMessage());
+            }
+
             return response()->json($post->load('user.residentProfile'), 201);
         });
 
@@ -348,6 +381,12 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
                 'parent_id' => $validated['parent_id'] ?? null,
                 'content' => $validated['content'],
             ]);
+
+            try {
+                \App\Services\MentionService::processMentions($comment->content, $comment, $request->user());
+            } catch (\Exception $e) {
+                logger()->error('Processing mentions on comment creation failed: ' . $e->getMessage());
+            }
 
             $loadedComment = $comment->load(['user.residentProfile', 'user.roles']);
 

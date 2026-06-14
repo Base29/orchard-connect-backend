@@ -37,7 +37,7 @@ class SendPlatformNotification
                             $postOwner->notify(new GeneralNotification(
                                 'New Comment on Your Post',
                                 "{$commenter->name} commented on your post: \"" . Str::limit($comment->content, 30) . "\"",
-                                "/dashboard/feed?post={$post->id}",
+                                "/dashboard/feed?post={$post->id}&comment={$comment->id}",
                                 ['type' => 'comment', 'post_id' => $post->id, 'comment_id' => $comment->id]
                             ));
                         }
@@ -68,11 +68,11 @@ class SendPlatformNotification
                         if ($parentCommentOwner) {
                             $targetUrl = '/dashboard';
                             if ($comment->post_id) {
-                                $targetUrl = "/dashboard/feed?post={$comment->post_id}";
+                                $targetUrl = "/dashboard/feed?post={$comment->post_id}&comment={$comment->id}";
                             } elseif ($comment->listing_id) {
-                                $targetUrl = "/dashboard/marketplace/{$comment->listing_id}";
+                                $targetUrl = "/dashboard/marketplace/{$comment->listing_id}?comment={$comment->id}";
                             } elseif ($comment->news_id) {
-                                $targetUrl = "/dashboard/news/{$comment->news_id}";
+                                $targetUrl = "/dashboard/news/{$comment->news_id}?comment={$comment->id}";
                             }
 
                             $parentCommentOwner->notify(new GeneralNotification(
