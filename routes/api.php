@@ -328,7 +328,15 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
                 logger()->error('Processing mentions on post creation failed: ' . $e->getMessage());
             }
 
-            return response()->json($post->load('user.residentProfile'), 201);
+            $loadedPost = $post->load('user.residentProfile');
+
+            try {
+                broadcast(new \App\Events\PostCreated($loadedPost))->toOthers();
+            } catch (\Exception $e) {
+                logger()->error('Broadcasting PostCreated event failed: ' . $e->getMessage());
+            }
+
+            return response()->json($loadedPost, 201);
         });
 
         // Toggle Post Likes
