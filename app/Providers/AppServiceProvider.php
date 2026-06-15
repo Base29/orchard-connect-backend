@@ -69,5 +69,9 @@ class AppServiceProvider extends ServiceProvider
             \App\Events\ListingStatusUpdated::class,
             [\App\Listeners\SendPlatformNotification::class, 'handle']
         );
+        \Illuminate\Support\Facades\Event::listen(
+            \App\Events\SupportTicketStatusUpdated::class,
+            [\App\Listeners\SendPlatformNotification::class, 'handle']
+        );
     }
 }

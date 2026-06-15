@@ -6,6 +6,7 @@ use App\Events\CommentCreated;
 use App\Events\PostLiked;
 use App\Events\ResidentVerificationStatusUpdated;
 use App\Events\ListingStatusUpdated;
+use App\Events\SupportTicketStatusUpdated;
 use App\Models\User;
 use App\Models\Post;
 use App\Notifications\GeneralNotification;
@@ -136,6 +137,25 @@ class SendPlatformNotification
                             "Your listing \"{$event->listingTitle}\" has been {$statusText}.",
                             "/dashboard/marketplace/{$event->listingId}",
                             ['type' => 'listing_status', 'listing_id' => $event->listingId, 'status' => $event->status]
+                        ));
+                    }
+                }
+            }
+
+            if ($event instanceof SupportTicketStatusUpdated) {
+                if ($event->userId) {
+                    $user = User::find($event->userId);
+                    if ($user) {
+                        $user->notify(new GeneralNotification(
+                            'Support Ticket Status Updated',
+                            "Your support ticket [{$event->trackingId}] status has been updated to {$event->status}.",
+                            "/dashboard/support",
+                            [
+                                'type' => 'ticket_status',
+                                'ticket_id' => $event->ticketId,
+                                'status' => $event->status,
+                                'tracking_id' => $event->trackingId
+                            ]
                         ));
                     }
                 }

@@ -26,6 +26,24 @@ class SupportTicket extends Model
         'assigned_to',
     ];
 
+    /**
+     * Boot the model and register status update observer.
+     */
+    protected static function booted()
+    {
+        static::updated(function ($ticket) {
+            if ($ticket->wasChanged('status') && $ticket->user_id) {
+                event(new \App\Events\SupportTicketStatusUpdated(
+                    $ticket->id,
+                    $ticket->status,
+                    $ticket->tracking_id,
+                    $ticket->subject,
+                    $ticket->user_id
+                ));
+            }
+        });
+    }
+
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()

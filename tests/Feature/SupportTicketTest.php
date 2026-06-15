@@ -166,4 +166,63 @@ class SupportTicketTest extends TestCase
             ->assertJsonFragment(['tracking_id' => 'OC-TICK-RES1'])
             ->assertJsonMissing(['tracking_id' => 'OC-TICK-RES2']);
     }
+
+    /**
+     * Ticket status update dispatches event and notifies user.
+     */
+    public function test_ticket_status_change_dispatches_event_and_notification(): void
+    {
+        \Illuminate\Support\Facades\Event::fake([
+            \App\Events\SupportTicketStatusUpdated::class
+        ]);
+
+        $ticket = SupportTicket::create([
+            'tracking_id' => 'OC-TICK-NOTIF1',
+            'user_id' => $this->resident->id,
+            'category' => 'general',
+            'subject' => 'Inquiry',
+            'description' => 'Test message',
+            'status' => 'pending',
+        ]);
+
+        // Trigger update
+        $ticket->update(['status' => 'resolved']);
+
+        \Illuminate\Support\Facades\Event::assertDispatched(\App\Events\SupportTicketStatusUpdated::class, function ($event) use ($ticket) {
+            return $event->ticketId === $ticket->id 
+                && $event->status === 'resolved' 
+                && $event->userId === $this->resident->id;
+        });
+    }
+
+    /**
+     * Ticket status update notifies user via GeneralNotification when Event listener is executed.
+     */
+    public function test_ticket_status_change_notifies_user(): void
+    {
+        $ticket = SupportTicket::create([
+            'tracking_id' => 'OC-TICK-NOTIF2',
+            'user_id' => $this->resident->id,
+            'category' => 'general',
+            'subject' => 'Inquiry',
+            'description' => 'Test message',
+            'status' => 'pending',
+        ]);
+
+        \Illuminate\Support\Facades\Notification::fake();
+
+        // Directly dispatch the listener or trigger update (listener will run synchronously in tests)
+        $ticket->update(['status' => 'resolved']);
+
+        \Illuminate\Support\Facades\Notification::assertSentTo(
+            $this->resident,
+            \App\Notifications\GeneralNotification::class,
+            function ($notification, $channels) use ($ticket) {
+                return $notification->title === 'Support Ticket Status Updated'
+                    && str_contains($notification->message, 'OC-TICK-NOTIF2')
+                    && $notification->metadata['ticket_id'] === $ticket->id;
+            }
+        );
+    }
 }
+
