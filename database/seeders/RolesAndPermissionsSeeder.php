@@ -99,8 +99,9 @@ class RolesAndPermissionsSeeder extends Seeder
         // Superadmin: me@imfaisal.pro
         $faisal = User::where('email', 'me@imfaisal.pro')->first();
         if ($faisal) {
+            $faisal->update(['password' => bcrypt('password123')]);
             $faisal->assignRole($superAdminRole);
-            $this->command->info('Role "superadmin" successfully assigned to existing user: me@imfaisal.pro');
+            $this->command->info('Role "superadmin" successfully assigned and password reset to password123 for existing user: me@imfaisal.pro');
         } else {
             $faisal = User::create([
                 'name' => 'Faisal Hussain',
@@ -115,8 +116,9 @@ class RolesAndPermissionsSeeder extends Seeder
         // Test fallback Admin: test@example.com
         $testAdmin = User::where('email', 'test@example.com')->first();
         if ($testAdmin) {
+            $testAdmin->update(['password' => bcrypt('password123')]);
             $testAdmin->assignRole($superAdminRole);
-            $this->command->info('Role "superadmin" assigned to test@example.com');
+            $this->command->info('Role "superadmin" assigned and password reset to password123 for test@example.com');
         } else {
             $testAdmin = User::create([
                 'name' => 'Test Admin',
@@ -140,7 +142,9 @@ class RolesAndPermissionsSeeder extends Seeder
             $communityAdminUser->assignRole($communityAdminRole);
             $this->command->info('Created Community Admin: community_admin@orchard.com (password: password123)');
         } else {
+            $communityAdminUser->update(['password' => bcrypt('password123')]);
             $communityAdminUser->assignRole($communityAdminRole);
+            $this->command->info('Community Admin password reset to password123 for community_admin@orchard.com');
         }
 
         // Content Moderator test user
@@ -155,7 +159,9 @@ class RolesAndPermissionsSeeder extends Seeder
             $contentModUser->assignRole($contentModRole);
             $this->command->info('Created Content Moderator: feed_moderator@orchard.com (password: password123)');
         } else {
+            $contentModUser->update(['password' => bcrypt('password123')]);
             $contentModUser->assignRole($contentModRole);
+            $this->command->info('Content Moderator password reset to password123 for feed_moderator@orchard.com');
         }
 
         // Marketplace Moderator test user
@@ -170,7 +176,9 @@ class RolesAndPermissionsSeeder extends Seeder
             $marketModUser->assignRole($marketModRole);
             $this->command->info('Created Marketplace Moderator: market_moderator@orchard.com (password: password123)');
         } else {
+            $marketModUser->update(['password' => bcrypt('password123')]);
             $marketModUser->assignRole($marketModRole);
+            $this->command->info('Marketplace Moderator password reset to password123 for market_moderator@orchard.com');
         }
 
         // Support Staff test user
@@ -186,7 +194,9 @@ class RolesAndPermissionsSeeder extends Seeder
             $supportStaffUser->assignRole($supportStaffRole);
             $this->command->info('Created Support Staff: support_staff@orchard.com (password: password123)');
         } else {
+            $supportStaffUser->update(['password' => bcrypt('password123')]);
             $supportStaffUser->assignRole($supportStaffRole);
+            $this->command->info('Support Staff password reset to password123 for support_staff@orchard.com');
         }
 
         // 4. Seed Default Announcements
