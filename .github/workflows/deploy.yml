@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - develop
 
 env:
   REGISTRY: ghcr.io
@@ -40,7 +41,8 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=latest
+            type=ref,event=branch
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=sha,format=short
 
       - name: Build and Push Docker Image (Multi-Platform)
@@ -55,8 +57,9 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-  deploy:
+  deploy-demo:
     needs: build
+    if: github.ref == 'refs/heads/develop'
     runs-on: ubuntu-latest
     steps:
       - name: Install Cloudflare Tunnel Client
@@ -81,9 +84,57 @@ jobs:
             StrictHostKeyChecking no
           EOF
           
+          # Get lowercase image name
+          IMAGE_NAME_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          
           # SSH and Deploy
-          ssh raspberrypi << 'EOF'
+          ssh raspberrypi "IMAGE_NAME_LOWER=${IMAGE_NAME_LOWER} bash -s" << 'EOF'
             cd ${{ secrets.DEPLOY_PATH }}
+            
+            # Log in to GHCR
+            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            
+            # Pull new backend image with develop tag
+            docker pull ghcr.io/${IMAGE_NAME_LOWER}:develop
+            
+            # Tag it as latest locally so docker-compose uses it
+            docker tag ghcr.io/${IMAGE_NAME_LOWER}:develop ghcr.io/${IMAGE_NAME_LOWER}:latest
+            
+            # Recreate the backend and reverb containers
+            docker compose up -d backend
+            docker compose up -d reverb
+            
+            # Run post-deployment Laravel commands
+            docker compose exec -T backend php artisan migrate --force
+            docker compose exec -T backend php artisan config:cache
+            docker compose exec -T backend php artisan route:cache
+            docker compose exec -T backend php artisan view:cache
+          EOF
+
+  deploy-production:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to Production Server via SSH
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.PROD_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          
+          # Setup SSH configuration
+          cat <<EOF > ~/.ssh/config
+          Host production
+            HostName ${{ secrets.PROD_SSH_HOST }}
+            User ${{ secrets.PROD_SSH_USER }}
+            Port ${{ secrets.PROD_SSH_PORT || '22' }}
+            IdentityFile ~/.ssh/id_rsa
+            StrictHostKeyChecking no
+          EOF
+          
+          # SSH and Deploy
+          ssh production << 'EOF'
+            cd ${{ secrets.PROD_DEPLOY_PATH }}
             
             # Log in to GHCR
             echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin

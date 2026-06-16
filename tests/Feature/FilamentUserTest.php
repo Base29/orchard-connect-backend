@@ -18,6 +18,31 @@ class FilamentUserTest extends TestCase
     {
         parent::setUp();
         $this->seed(RolesAndPermissionsSeeder::class);
+
+        // Seed additional users required by tests that are no longer created by RolesAndPermissionsSeeder
+        if (!User::where('email', 'me@imfaisal.pro')->exists()) {
+            User::factory()->create([
+                'name' => 'Faisal Hussain',
+                'email' => 'me@imfaisal.pro',
+                'status' => 'active',
+            ])->assignRole('superadmin');
+        }
+
+        if (!User::where('email', 'test@example.com')->exists()) {
+            User::factory()->create([
+                'name' => 'Test Admin',
+                'email' => 'test@example.com',
+                'status' => 'active',
+            ])->assignRole('superadmin');
+        }
+
+        if (!User::where('email', 'community_admin@orchard.com')->exists()) {
+            User::factory()->create([
+                'name' => 'Community Admin User',
+                'email' => 'community_admin@orchard.com',
+                'status' => 'active',
+            ])->assignRole('community-admin');
+        }
     }
 
     public function test_admin_can_edit_user_with_resident_profile(): void
