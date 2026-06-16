@@ -82,13 +82,15 @@ jobs:
             IdentityFile ~/.ssh/id_rsa
             ProxyCommand /usr/bin/cloudflared access ssh --hostname %h
             StrictHostKeyChecking no
+            ServerAliveInterval 30
+            ServerAliveCountMax 5
           EOF
           
           # Get lowercase image name
           IMAGE_NAME_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
           
           # SSH and Deploy
-          ssh raspberrypi "IMAGE_NAME_LOWER=${IMAGE_NAME_LOWER} bash -s" << 'EOF'
+          ssh raspberrypi << EOF
             cd ${{ secrets.DEPLOY_PATH }}
             
             # Log in to GHCR
