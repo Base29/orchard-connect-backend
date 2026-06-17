@@ -31,8 +31,18 @@ class CheckMaintenanceMode
             }
 
             // 3. Allow access to authenticated admins/moderators
-            // Note: Sanctum authenticator should have already resolved the user if a bearer token was sent.
-            $user = $request->user();
+            // Note: Safely resolve the user without triggering session errors in stateless API routes.
+            $user = null;
+            try {
+                if ($request->hasSession()) {
+                    $user = $request->user();
+                } else {
+                    $user = auth('sanctum')->user();
+                }
+            } catch (\Throwable $e) {
+                // Ignore session or auth resolution errors in stateless contexts
+            }
+
             if ($user) {
                 try {
                     if ($user->hasAnyRole(['superadmin', 'community-admin', 'marketplace-moderator', 'content-moderator'])) {

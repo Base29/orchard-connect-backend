@@ -36,7 +36,7 @@ class MaintenanceModeWidget extends Widget
         try {
             event(new MaintenanceModeChanged($this->isMaintenance));
             logger()->info('Dispatched MaintenanceModeChanged event. Status: ' . ($this->isMaintenance ? 'ON' : 'OFF'));
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             logger()->error('Broadcasting MaintenanceModeChanged failed: ' . $e->getMessage());
         }
 
