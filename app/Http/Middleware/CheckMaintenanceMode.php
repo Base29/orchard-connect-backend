@@ -45,7 +45,7 @@ class CheckMaintenanceMode
 
             if ($user) {
                 try {
-                    if ($user->hasAnyRole(['superadmin', 'community-admin', 'marketplace-moderator', 'content-moderator'])) {
+                    if ($user->hasAnyRole(['superadmin', 'community-admin', 'marketplace-moderator', 'content-moderator'], 'web')) {
                         return $next($request);
                     }
                 } catch (\Throwable $e) {

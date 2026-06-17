@@ -19,7 +19,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/maintenance-status', function () {
     return response()->json([
         'is_enabled' => (bool) \App\Models\Setting::getValue('maintenance_mode', false),
-        'reverb_key' => env('REVERB_APP_KEY')
+        'reverb_key' => config('broadcasting.connections.reverb.key')
     ]);
 });
 

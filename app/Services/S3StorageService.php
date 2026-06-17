@@ -12,8 +12,8 @@ class S3StorageService
  
     public function __construct()
     {
-        $this->keyId = env('AWS_ACCESS_KEY_ID');
-        $this->bucket = env('AWS_BUCKET');
+        $this->keyId = config('filesystems.disks.s3.key');
+        $this->bucket = config('filesystems.disks.s3.bucket');
     }
  
     /**
