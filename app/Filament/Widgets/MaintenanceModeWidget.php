@@ -40,12 +40,16 @@ class MaintenanceModeWidget extends Widget
             logger()->error('Broadcasting MaintenanceModeChanged failed: ' . $e->getMessage());
         }
 
-        Notification::make()
-            ->title($this->isMaintenance ? 'Maintenance Mode Active' : 'Platform Online')
-            ->body($this->isMaintenance 
-                ? 'Orchard Connect has been put into maintenance mode. Normal users will see the maintenance screen.' 
-                : 'Maintenance mode has been disabled. The platform is now fully accessible.')
-            ->success()
-            ->send();
+        try {
+            Notification::make()
+                ->title($this->isMaintenance ? 'Maintenance Mode Active' : 'Platform Online')
+                ->body($this->isMaintenance 
+                    ? 'Orchard Connect has been put into maintenance mode. Normal users will see the maintenance screen.' 
+                    : 'Maintenance mode has been disabled. The platform is now fully accessible.')
+                ->success()
+                ->send();
+        } catch (\Throwable $e) {
+            logger()->error('Sending Filament notification failed: ' . $e->getMessage());
+        }
     }
 }
