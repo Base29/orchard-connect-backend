@@ -122,6 +122,9 @@ jobs:
             docker compose exec -T backend php artisan config:cache
             docker compose exec -T backend php artisan route:cache
             docker compose exec -T backend php artisan view:cache
+            
+            # Ensure the entire stack is running (including caddy, queue)
+            docker compose up -d
           EOF
 
   deploy-production:
@@ -176,4 +179,7 @@ jobs:
             sudo docker compose exec -T backend php artisan config:cache
             sudo docker compose exec -T backend php artisan route:cache
             sudo docker compose exec -T backend php artisan view:cache
+            
+            # Ensure the entire stack is running (including caddy, queue)
+            sudo docker compose up -d
           EOF
