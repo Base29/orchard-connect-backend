@@ -96,6 +96,36 @@ class Listing extends Model
     }
 
     /**
+     * Mutator to format phone numbers to the +92 Pakistani country code format.
+     */
+    public function setContactWhatsappAttribute($value)
+    {
+        if (empty($value)) {
+            $this->attributes['contact_whatsapp'] = $value;
+            return;
+        }
+
+        // Clean whitespaces, dashes, and other non-digit/non-plus characters
+        $phone = preg_replace('/[^\d+]/', '', $value);
+
+        if (str_starts_with($phone, '+92')) {
+            $this->attributes['contact_whatsapp'] = $phone;
+        } elseif (str_starts_with($phone, '0092')) {
+            $this->attributes['contact_whatsapp'] = '+92' . substr($phone, 4);
+        } elseif (str_starts_with($phone, '92')) {
+            $this->attributes['contact_whatsapp'] = '+' . $phone;
+        } elseif (str_starts_with($phone, '0')) {
+            $this->attributes['contact_whatsapp'] = '+92' . substr($phone, 1);
+        } else {
+            if (!str_starts_with($phone, '+')) {
+                $this->attributes['contact_whatsapp'] = '+92' . $phone;
+            } else {
+                $this->attributes['contact_whatsapp'] = $phone;
+            }
+        }
+    }
+
+    /**
      * Get the associated user who owns this classified listing.
      */
     public function user(): BelongsTo

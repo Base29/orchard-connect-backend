@@ -610,4 +610,39 @@ class MarketplaceApiTest extends TestCase
             'target_id' => $listing->id,
         ]);
     }
+
+    /**
+     * Test that the contact_whatsapp phone number is formatted correctly when saving a listing.
+     */
+    public function test_classified_ad_phone_number_is_formatted_correctly(): void
+    {
+        $testCases = [
+            '03222911199' => '+923222911199',
+            '3222911199' => '+923222911199',
+            '923222911199' => '+923222911199',
+            '+923222911199' => '+923222911199',
+            '00923222911199' => '+923222911199',
+            ' +92 322-2911199 ' => '+923222911199',
+            '+1234567890' => '+1234567890',
+        ];
+
+        foreach ($testCases as $input => $expected) {
+            $response = $this->actingAs($this->verifiedUser, 'sanctum')
+                ->postJson('/api/listings', [
+                    'title' => 'Test Phone formatting ' . uniqid(),
+                    'description' => 'Test description formatting.',
+                    'price' => 100,
+                    'category' => 'Electronics',
+                    'contact_whatsapp' => (string)$input,
+                    'images' => [],
+                ]);
+
+            $response->assertStatus(201);
+
+            $this->assertDatabaseHas('listings', [
+                'id' => $response->json('id'),
+                'contact_whatsapp' => $expected,
+            ]);
+        }
+    }
 }
