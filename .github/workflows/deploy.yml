@@ -139,19 +139,19 @@ jobs:
             cd ${{ secrets.PROD_DEPLOY_PATH }}
             
             # Log in to GHCR
-            echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            echo "${{ secrets.GHCR_TOKEN }}" | sudo docker login ghcr.io -u ${{ github.actor }} --password-stdin
             
             # Pull new backend and reverb images sequentially
-            docker compose pull backend
-            docker compose pull reverb
+            sudo docker compose pull backend
+            sudo docker compose pull reverb
             
             # Recreate the backend and reverb containers sequentially to avoid memory spikes
-            docker compose up -d backend
-            docker compose up -d reverb
+            sudo docker compose up -d backend
+            sudo docker compose up -d reverb
             
             # Run post-deployment Laravel commands
-            docker compose exec -T backend php artisan migrate --force
-            docker compose exec -T backend php artisan config:cache
-            docker compose exec -T backend php artisan route:cache
-            docker compose exec -T backend php artisan view:cache
+            sudo docker compose exec -T backend php artisan migrate --force
+            sudo docker compose exec -T backend php artisan config:cache
+            sudo docker compose exec -T backend php artisan route:cache
+            sudo docker compose exec -T backend php artisan view:cache
           EOF
