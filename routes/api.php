@@ -273,32 +273,117 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
             'house_number' => 'required|string|max:100',
             'street_number' => 'nullable|string|max:100',
             'user_type' => 'required|string|in:owner,tenant',
+            'document' => 'nullable|file|mimes:pdf,png,jpg,jpeg|max:10240',
+        ]);
+
+        $profileData = [
+            'phase' => $validated['phase'],
+            'block' => $validated['block'],
+            'house_number' => $validated['house_number'],
+            'street_number' => $validated['street_number'] ?? null,
+            'user_type' => $validated['user_type'],
+            'is_verified' => false,
+        ];
+
+        // 3. Upload verification document if provided
+        $uploaded = false;
+        if ($request->hasFile('document')) {
+            $storage = app(\App\Services\S3PrivateStorageService::class);
+            $file = $request->file('document');
+            $fileName = 'bill_' . time() . '.' . $file->getClientOriginalExtension();
+            $targetPath = "documents/{$user->id}/{$fileName}";
+            $documentPath = $storage->upload($file, $targetPath);
+            
+            $profileData['document_path'] = $documentPath;
+            $profileData['status'] = 'pending';
+            $profileData['rejection_reason'] = null;
+            $profileData['rejection_message'] = null;
+            $uploaded = true;
+        }
+
+        // 4. Create or update profile
+        $profile = $user->residentProfile()->updateOrCreate(
+            ['user_id' => $user->id],
+            $profileData
+        );
+
+        // Notify admin staff only if document was uploaded
+        if ($uploaded) {
+            try {
+                $staff = \App\Models\User::role(['superadmin', 'community-admin'])->get();
+                foreach ($staff as $admin) {
+                    $admin->notify(new \App\Notifications\GeneralNotification(
+                        'Resident Verification Submitted',
+                        "{$user->name} has submitted proof of residency for verification.",
+                        '/admin/resident-profiles',
+                        ['type' => 'moderation_verification', 'user_id' => $user->id]
+                    ));
+                }
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::error('Staff verification notification failed: ' . $e->getMessage());
+            }
+        }
+
+        return response()->json([
+            'message' => 'Profile updated successfully.',
+            'profile' => $profile
+        ]);
+    });
+
+    // Upload Residency Document Proof separately
+    Route::post('/resident/profile/document', function (Request $request) {
+        $user = $request->user();
+
+        // 1. Lock check: 3 consecutive rejections in rolling 48 hours
+        if ($user->residentProfile) {
+            $lastApproval = \App\Models\ModerationLog::where('action', 'verify_resident')
+                ->where('target_type', \App\Models\User::class)
+                ->where('target_id', $user->id)
+                ->latest()
+                ->first();
+
+            $query = \App\Models\ModerationLog::where('action', 'reject_resident')
+                ->where('target_type', \App\Models\User::class)
+                ->where('target_id', $user->id)
+                ->where('created_at', '>=', now()->subHours(48));
+
+            if ($lastApproval) {
+                $query->where('created_at', '>', $lastApproval->created_at);
+            }
+
+            if ($query->count() >= 3) {
+                return response()->json([
+                    'message' => 'Your account is locked due to too many failed verification attempts. Please visit the society office for physical verification.'
+                ], 429);
+            }
+        }
+
+        $validated = $request->validate([
             'document' => 'required|file|mimes:pdf,png,jpg,jpeg|max:10240',
         ]);
 
-        // 3. Upload verification document
+        $profile = $user->residentProfile;
+        if (!$profile) {
+            return response()->json([
+                'message' => 'Residency profile not found. Please complete profile details first.'
+            ], 404);
+        }
+
+        // Upload verification document
         $storage = app(\App\Services\S3PrivateStorageService::class);
         $file = $request->file('document');
         $fileName = 'bill_' . time() . '.' . $file->getClientOriginalExtension();
         $targetPath = "documents/{$user->id}/{$fileName}";
         $documentPath = $storage->upload($file, $targetPath);
 
-        // 4. Create or update profile
-        $profile = $user->residentProfile()->updateOrCreate(
-            ['user_id' => $user->id],
-            [
-                'phase' => $validated['phase'],
-                'block' => $validated['block'],
-                'house_number' => $validated['house_number'],
-                'street_number' => $validated['street_number'] ?? null,
-                'user_type' => $validated['user_type'],
-                'document_path' => $documentPath,
-                'status' => 'pending',
-                'is_verified' => false,
-                'rejection_reason' => null,
-                'rejection_message' => null,
-            ]
-        );
+        // Update profile
+        $profile->update([
+            'document_path' => $documentPath,
+            'status' => 'pending',
+            'is_verified' => false,
+            'rejection_reason' => null,
+            'rejection_message' => null,
+        ]);
 
         // Notify admin staff
         try {
@@ -316,7 +401,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
         }
 
         return response()->json([
-            'message' => 'Profile updated successfully. Awaiting administration review.',
+            'message' => 'Document uploaded successfully. Awaiting administration review.',
             'profile' => $profile
         ]);
     });

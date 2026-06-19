@@ -63,7 +63,7 @@ class ResidencyVerificationTest extends TestCase
     {
         $user = User::factory()->create();
 
-        // Missing document and invalid phase
+        // Missing document (optional now) and invalid phase
         $response = $this->actingAs($user, 'sanctum')
             ->postJson('/api/resident/profile', [
                 'phase' => 'Phase 999', // Invalid enum
@@ -73,7 +73,73 @@ class ResidencyVerificationTest extends TestCase
             ]);
 
         $response->assertStatus(422)
-            ->assertJsonValidationErrors(['phase', 'block', 'user_type', 'document']);
+            ->assertJsonValidationErrors(['phase', 'block', 'user_type'])
+            ->assertJsonMissingValidationErrors(['document']);
+    }
+
+    /**
+     * Test a user can complete their profile without uploading a document initially.
+     */
+    public function test_user_can_submit_profile_without_document(): void
+    {
+        $user = User::factory()->create();
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/resident/profile', [
+                'phase' => 'Phase 1',
+                'block' => 'Block G',
+                'house_number' => '142',
+                'street_number' => 'Street 4',
+                'user_type' => 'tenant',
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('profile.is_verified', false);
+
+        $this->assertDatabaseHas('resident_profiles', [
+            'user_id' => $user->id,
+            'phase' => 'Phase 1',
+            'block' => 'Block G',
+            'house_number' => '142',
+            'street_number' => 'Street 4',
+            'user_type' => 'tenant',
+            'document_path' => null,
+            'is_verified' => false,
+        ]);
+    }
+
+    /**
+     * Test a user can upload their residency document separately.
+     */
+    public function test_user_can_upload_document_separately(): void
+    {
+        $user = User::factory()->create();
+        
+        // Pre-create profile without document
+        ResidentProfile::create([
+            'user_id' => $user->id,
+            'phase' => 'Phase 1',
+            'block' => 'Block A',
+            'house_number' => '100',
+            'user_type' => 'owner',
+            'is_verified' => false,
+            'status' => 'pending',
+        ]);
+
+        $file = UploadedFile::fake()->create('bill.png', 500, 'image/png');
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/resident/profile/document', [
+                'document' => $file,
+            ]);
+
+        $response->assertStatus(200)
+            ->assertJsonPath('profile.status', 'pending')
+            ->assertJsonPath('profile.is_verified', false);
+
+        $profile = ResidentProfile::where('user_id', $user->id)->first();
+        $this->assertNotNull($profile->document_path);
+        $this->assertStringContainsString('bill_', $profile->document_path);
     }
 
     /**
@@ -438,5 +504,68 @@ class ResidencyVerificationTest extends TestCase
         // Assert the file exists on s3 fake disk
         $cleanS3Path = str_replace('s3://', '', $profile->document_path);
         Storage::disk('s3')->assertExists($cleanS3Path);
+    }
+
+    /**
+     * Test a notification is sent to superadmin and community-admin when residency verification is submitted,
+     * and the notification data is fully compatible with Filament database notification panel.
+     */
+    public function test_submitting_verification_notifies_staff_with_filament_compatible_data(): void
+    {
+        $this->seed(\Database\Seeders\RolesAndPermissionsSeeder::class);
+
+        // Create a superadmin and a community admin
+        $superadmin = User::factory()->create();
+        $superadmin->assignRole('superadmin');
+
+        $communityAdmin = User::factory()->create();
+        $communityAdmin->assignRole('community-admin');
+
+        // Create a regular user who will submit
+        $user = User::factory()->create();
+        $file = UploadedFile::fake()->create('bill.pdf', 500, 'application/pdf');
+
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/resident/profile', [
+                'phase' => 'Phase 1',
+                'block' => 'Block G',
+                'house_number' => '142',
+                'street_number' => 'Street 4',
+                'user_type' => 'tenant',
+                'document' => $file,
+            ]);
+
+        $response->assertStatus(200);
+
+        // Verify that notifications are created in database for superadmin and community admin
+        $this->assertDatabaseHas('notifications', [
+            'notifiable_type' => User::class,
+            'notifiable_id' => $superadmin->id,
+        ]);
+
+        $this->assertDatabaseHas('notifications', [
+            'notifiable_type' => User::class,
+            'notifiable_id' => $communityAdmin->id,
+        ]);
+
+        // Get the notification data and assert compatibility
+        $notification = $superadmin->notifications()->first();
+        $this->assertNotNull($notification);
+
+        $data = $notification->data;
+        $this->assertEquals('Resident Verification Submitted', $data['title']);
+        $this->assertEquals("{$user->name} has submitted proof of residency for verification.", $data['body']);
+        $this->assertEquals('heroicon-o-shield-check', $data['icon']);
+        $this->assertEquals('warning', $data['iconColor']);
+        $this->assertEquals('warning', $data['status']);
+        $this->assertEquals('persistent', $data['duration']);
+        $this->assertEquals('filament', $data['format']);
+        $this->assertArrayHasKey('actions', $data);
+        $this->assertCount(1, $data['actions']);
+        $this->assertEquals('view', $data['actions'][0]['name']);
+        $this->assertEquals('/admin/resident-profiles', $data['actions'][0]['url']);
+        $this->assertEquals('filament::components.link', $data['actions'][0]['view']);
+        $this->assertEquals('moderation_verification', $data['metadata']['type']);
+        $this->assertEquals($user->id, $data['metadata']['user_id']);
     }
 }

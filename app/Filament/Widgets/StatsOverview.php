@@ -18,7 +18,7 @@ class StatsOverview extends BaseWidget
     {
         // 1. Resident Verification Stats
         $verifiedCount = ResidentProfile::whereRaw('is_verified = true')->count();
-        $pendingCount = ResidentProfile::where('status', 'pending')->count();
+        $pendingCount = ResidentProfile::where('status', 'pending')->whereNotNull('document_path')->count();
         
         $sevenDaysAgo = Carbon::now()->subDays(6)->startOfDay();
 
