@@ -24,7 +24,7 @@ class ListResidentProfiles extends ListRecords
     {
         return [
             'pending' => Tab::make('Pending Reviews')
-                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'pending')),
+                ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'pending')->whereNotNull('document_path')),
             'approved' => Tab::make('Approved')
                 ->modifyQueryUsing(fn (Builder $query) => $query->where('status', 'approved')),
             'rejected' => Tab::make('Rejected')

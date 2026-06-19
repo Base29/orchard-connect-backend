@@ -13,6 +13,11 @@ use Filament\Actions\Action;
 
 class PendingVerifications extends BaseWidget
 {
+    public static function canView(): bool
+    {
+        return auth()->user()?->hasAnyRole(['superadmin', 'community-admin']) ?? false;
+    }
+
     protected static ?int $sort = 3;
 
     protected int|string|array $columnSpan = 'full';
@@ -23,6 +28,7 @@ class PendingVerifications extends BaseWidget
             ->heading('Recent Pending Verifications')
             ->query(
                 ResidentProfile::where('status', 'pending')
+                    ->whereNotNull('document_path')
                     ->latest()
                     ->limit(5)
             )

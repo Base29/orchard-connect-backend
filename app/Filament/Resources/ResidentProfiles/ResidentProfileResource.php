@@ -20,7 +20,7 @@ class ResidentProfileResource extends Resource
 
     public static function canAccessNavigation(): bool
     {
-        return !auth()->user()->hasAnyRole(['marketplace-moderator', 'content-moderator']);
+        return auth()->user()->can('verify-residents') || auth()->user()->can('override-moderation');
     }
 
     protected static \UnitEnum|string|null $navigationGroup = 'Community & Verification';
