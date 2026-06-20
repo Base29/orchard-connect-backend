@@ -43,11 +43,7 @@ Route::middleware(\App\Http\Middleware\CheckMaintenanceMode::class)->prefix('aut
             'status' => 'active',
         ]);
 
-        try {
-            $user->sendCustomEmailVerificationNotification();
-        } catch (\Exception $e) {
-            \Illuminate\Support\Facades\Log::error('Verification email failed: ' . $e->getMessage());
-        }
+        event(new \Illuminate\Auth\Events\Registered($user));
 
         $token = $user->createToken('community_auth_token')->plainTextToken;
 

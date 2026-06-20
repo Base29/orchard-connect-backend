@@ -196,4 +196,12 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
             new \App\Mail\VerifyEmailMailable($this, $verificationUrl)
         );
     }
+
+    /**
+     * Send the email verification notification.
+     */
+    public function sendEmailVerificationNotification(): void
+    {
+        $this->sendCustomEmailVerificationNotification();
+    }
 }
