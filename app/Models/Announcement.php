@@ -73,7 +73,7 @@ class Announcement extends Model
      * @var array<string, string>
      */
     protected $casts = [
-        'pinned' => 'boolean',
+        'pinned' => \App\Casts\PostgresSafeBoolean::class,
     ];
 
     /**
