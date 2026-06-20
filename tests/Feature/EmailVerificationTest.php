@@ -168,4 +168,55 @@ class EmailVerificationTest extends TestCase
         $this->unverifiedEmailUser->refresh();
         $this->assertNull($this->unverifiedEmailUser->email_verified_at);
     }
+
+    /**
+     * Test that user registration sends exactly one verification email.
+     */
+    public function test_registration_sends_single_email(): void
+    {
+        Mail::fake();
+        \Illuminate\Support\Facades\Notification::fake();
+
+        $response = $this->postJson('/api/auth/register', [
+            'name' => 'John Doe',
+            'email' => 'johndoe@example.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response->assertStatus(201);
+
+        // Assert exactly one email was sent via Mailable
+        Mail::assertSent(VerifyEmailMailable::class, 1);
+
+        // Assert default notification was NOT sent
+        $user = User::where('email', 'johndoe@example.com')->first();
+        $this->assertNotNull($user);
+        \Illuminate\Support\Facades\Notification::assertNotSentTo(
+            [$user],
+            \Illuminate\Auth\Notifications\VerifyEmail::class
+        );
+    }
+
+    /**
+     * Test that user registration dispatches the Registered event.
+     */
+    public function test_registration_dispatches_registered_event(): void
+    {
+        \Illuminate\Support\Facades\Event::fake([
+            \Illuminate\Auth\Events\Registered::class
+        ]);
+
+        $response = $this->postJson('/api/auth/register', [
+            'name' => 'John Doe',
+            'email' => 'johndoe@example.com',
+            'password' => 'password123',
+            'password_confirmation' => 'password123',
+        ]);
+
+        $response->assertStatus(201);
+
+        \Illuminate\Support\Facades\Event::assertDispatched(\Illuminate\Auth\Events\Registered::class);
+    }
 }
+
