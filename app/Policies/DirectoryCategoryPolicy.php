@@ -12,12 +12,12 @@ class DirectoryCategoryPolicy
 
     public function viewAny(User $user): bool
     {
-        return $user->can('verify-businesses') || $user->can('review-listings') || $user->can('manage-system');
+        return true;
     }
 
     public function view(User $user, DirectoryCategory $directoryCategory): bool
     {
-        return $user->can('verify-businesses') || $user->can('review-listings') || $user->can('manage-system');
+        return true;
     }
 
     public function create(User $user): bool

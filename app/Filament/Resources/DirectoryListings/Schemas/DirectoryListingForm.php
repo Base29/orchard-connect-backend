@@ -18,7 +18,8 @@ class DirectoryListingForm
                     ->relationship('category', 'name')
                     ->label('Category')
                     ->required()
-                    ->searchable(),
+                    ->searchable()
+                    ->preload(),
                 TextInput::make('name')
                     ->required()
                     ->placeholder('e.g. Al-Fatah Supermarket'),
