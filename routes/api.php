@@ -92,6 +92,14 @@ Route::middleware(\App\Http\Middleware\CheckMaintenanceMode::class)->prefix('aut
 
 Route::get('/email/verify/{id}/{hash}', function (Request $request) {
     if (!$request->hasValidSignature()) {
+        \Illuminate\Support\Facades\Log::warning('Email verification signature mismatch debug details:', [
+            'full_url' => $request->fullUrl(),
+            'request_scheme' => $request->getScheme(),
+            'secure' => $request->secure(),
+            'headers' => $request->headers->all(),
+            'app_url' => config('app.url'),
+            'signature' => $request->query('signature'),
+        ]);
         $frontendUrl = config('app.frontend_url', 'http://localhost:3000');
         return redirect($frontendUrl . '/auth/login?error=invalid_signature');
     }

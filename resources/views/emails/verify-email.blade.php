@@ -27,7 +27,7 @@
                             <table border="0" cellpadding="0" cellspacing="0" style="margin-bottom: 30px;">
                                 <tr>
                                     <td align="center" style="border-radius: 4px; background-color: #111111;">
-                                        <a href="{{ $verificationUrl }}" target="_blank" style="display: inline-block; padding: 14px 28px; font-size: 14px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 4px; border: 1px solid #111111; background-color: #111111;">Confirm Email Address</a>
+                                        <a href="{!! $verificationUrl !!}" target="_blank" style="display: inline-block; padding: 14px 28px; font-size: 14px; font-weight: 600; color: #ffffff; text-decoration: none; border-radius: 4px; border: 1px solid #111111; background-color: #111111;">Confirm Email Address</a>
                                     </td>
                                 </tr>
                             </table>
