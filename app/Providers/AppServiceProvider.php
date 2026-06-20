@@ -29,6 +29,15 @@ class AppServiceProvider extends ServiceProvider
         // Force HTTPS in production
         if (config('app.env') === 'production') {
             \Illuminate\Support\Facades\URL::forceScheme('https');
+            
+            // Force the request scheme to HTTPS so signature verification passes behind double proxies
+            if (isset($_SERVER)) {
+                $_SERVER['HTTPS'] = 'on';
+            }
+            $request = $this->app->make('request');
+            if ($request) {
+                $request->server->set('HTTPS', 'on');
+            }
         }
 
         // Super Admin bypass for Gate checks
