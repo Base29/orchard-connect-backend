@@ -56,7 +56,7 @@ class PollController extends Controller
         $user = $request->user();
 
         // Verification guard
-        if (!$user->residentProfile || !$user->residentProfile->is_verified) {
+        if (!$user->isResidencyVerified()) {
             return response()->json(['message' => 'Action locked. Residency verification required.'], 403);
         }
 
@@ -177,7 +177,7 @@ class PollController extends Controller
         $user = $request->user();
 
         // Verification guard
-        if (!$user->residentProfile || !$user->residentProfile->is_verified) {
+        if (!$user->isResidencyVerified()) {
             return response()->json(['message' => 'Action locked. Residency verification required.'], 403);
         }
 

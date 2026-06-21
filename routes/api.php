@@ -217,15 +217,13 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
 
     // Search verified residents for mentions
     Route::get('/residents/search-mentions', function (Request $request) {
-        if (!$request->user()->residentProfile || !$request->user()->residentProfile->is_verified) {
+        if (!$request->user()->isResidencyVerified()) {
             return response()->json(['message' => 'Action locked. Residency verification required.'], 403);
         }
 
         $search = $request->query('query', '');
 
-        $query = \App\Models\User::whereHas('residentProfile', function ($q) {
-            $q->whereRaw('is_verified = true');
-        });
+        $query = \App\Models\User::verifiedResidents();
 
         if (!empty($search)) {
             if (config('database.default') === 'sqlite') {
@@ -280,13 +278,17 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
             'document' => 'nullable|file|mimes:pdf,png,jpg,jpeg|max:10240',
         ]);
 
+        $residencyVerificationEnabled = (bool) \App\Models\Setting::getValue('residency_verification_enabled', true);
+
         $profileData = [
             'phase' => $validated['phase'],
             'block' => $validated['block'],
             'house_number' => $validated['house_number'],
             'street_number' => $validated['street_number'] ?? null,
             'user_type' => $validated['user_type'],
-            'is_verified' => false,
+            'is_verified' => !$residencyVerificationEnabled,
+            'status' => $residencyVerificationEnabled ? 'pending' : 'approved',
+            'verified_at' => $residencyVerificationEnabled ? null : now(),
         ];
 
         // 3. Upload verification document if provided
@@ -440,7 +442,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
 
         Route::post('/', function (Request $request) {
             // Verification guard
-            if (!$request->user()->residentProfile || !$request->user()->residentProfile->is_verified) {
+            if (!$request->user()->isResidencyVerified()) {
                 return response()->json(['message' => 'Action locked. Residency verification required.'], 403);
             }
 
@@ -476,7 +478,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
         // Toggle Post Likes
         Route::post('/{post}/like', function (Request $request, \App\Models\Post $post) {
             // Verification guard
-            if (!$request->user()->residentProfile || !$request->user()->residentProfile->is_verified) {
+            if (!$request->user()->isResidencyVerified()) {
                 return response()->json(['message' => 'Action locked. Residency verification required.'], 403);
             }
 
@@ -509,7 +511,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
         // Threaded Comments
         Route::post('/{post}/comments', function (Request $request, \App\Models\Post $post) {
             // Verification guard
-            if (!$request->user()->residentProfile || !$request->user()->residentProfile->is_verified) {
+            if (!$request->user()->isResidencyVerified()) {
                 return response()->json(['message' => 'Action locked. Residency verification required.'], 403);
             }
 
@@ -554,7 +556,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
         // Flag Post
         Route::post('/{post}/flag', function (Request $request, \App\Models\Post $post) {
             // Verification guard
-            if (!$request->user()->residentProfile || !$request->user()->residentProfile->is_verified) {
+            if (!$request->user()->isResidencyVerified()) {
                 return response()->json(['message' => 'Action locked. Residency verification required.'], 403);
             }
 
@@ -675,7 +677,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
 
         Route::post('/', function (Request $request) {
             // Verification guard
-            if (!$request->user()->residentProfile || !$request->user()->residentProfile->is_verified) {
+            if (!$request->user()->isResidencyVerified()) {
                 return response()->json(['message' => 'Action locked. Residency verification required.'], 403);
             }
 
@@ -791,7 +793,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
         // Post listing comment
         Route::post('/{listing}/comments', function (Request $request, \App\Models\Listing $listing) {
             // Verification guard
-            if (!$request->user()->residentProfile || !$request->user()->residentProfile->is_verified) {
+            if (!$request->user()->isResidencyVerified()) {
                 return response()->json(['message' => 'Action locked. Residency verification required.'], 403);
             }
 
@@ -812,7 +814,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
         // Flag Listing
         Route::post('/{listing}/flag', function (Request $request, \App\Models\Listing $listing) {
             // Verification guard
-            if (!$request->user()->residentProfile || !$request->user()->residentProfile->is_verified) {
+            if (!$request->user()->isResidencyVerified()) {
                 return response()->json(['message' => 'Action locked. Residency verification required.'], 403);
             }
 
@@ -925,7 +927,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
     // Post / update a review for a listing
     Route::post('/directory/{listing}/reviews', function (Request $request, \App\Models\DirectoryListing $listing) {
         // Verification guard
-        if (!$request->user()->residentProfile || !$request->user()->residentProfile->is_verified) {
+        if (!$request->user()->isResidencyVerified()) {
             return response()->json(['message' => 'Action locked. Residency verification required.'], 403);
         }
 
@@ -974,7 +976,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
     // Phone Directory
     Route::get('/phone-directory', function (Request $request) {
         // Verification guard
-        if (!$request->user()->residentProfile || !$request->user()->residentProfile->is_verified) {
+        if (!$request->user()->isResidencyVerified()) {
             return response()->json(['message' => 'Action locked. Residency verification required.'], 403);
         }
 
@@ -1045,7 +1047,7 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
             }
 
             // Verification guard
-            if (!$request->user()->residentProfile || !$request->user()->residentProfile->is_verified) {
+            if (!$request->user()->isResidencyVerified()) {
                 return response()->json(['message' => 'Action locked. Residency verification required.'], 403);
             }
 

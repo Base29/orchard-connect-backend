@@ -654,4 +654,71 @@ class ResidencyVerificationTest extends TestCase
             'document_path' => 'purged',
         ]);
     }
+
+    /**
+     * Test toggling residency verification settings.
+     */
+    public function test_residency_verification_toggle_flow(): void
+    {
+        // 1. Turn residency verification OFF
+        \App\Models\Setting::setValue('residency_verification_enabled', false);
+
+        $user = User::factory()->create([
+            'email_verified_at' => now(),
+        ]);
+
+        // Assert User::isResidencyVerified returns true even without a profile
+        $this->assertTrue($user->isResidencyVerified());
+
+        // Assert we can submit profile and it gets auto-verified instantly
+        $response = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/resident/profile', [
+                'phase' => 'Phase 1',
+                'block' => 'Block A',
+                'house_number' => '100',
+                'user_type' => 'owner',
+            ]);
+
+        $response->assertStatus(200);
+        $this->assertDatabaseHas('resident_profiles', [
+            'user_id' => $user->id,
+            'is_verified' => true,
+            'status' => 'approved',
+        ]);
+
+        // Assert user can post to the feed
+        $postResponse = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/posts', [
+                'content' => 'Test content when verification is disabled',
+            ]);
+        $postResponse->assertStatus(201);
+
+        // Assert serialized user output has residency_verification_enabled false and overrides is_verified/status
+        $userResponse = $this->actingAs($user, 'sanctum')->getJson('/api/user');
+        $userResponse->assertStatus(200)
+            ->assertJsonPath('user.residency_verification_enabled', false)
+            ->assertJsonPath('user.resident_profile.is_verified', true)
+            ->assertJsonPath('user.resident_profile.status', 'approved');
+
+        // Assert verified residents query matches all active verified email users
+        $verifiedCount = User::verifiedResidents()->count();
+        $this->assertEquals(1, $verifiedCount);
+
+        // 2. Turn residency verification back ON
+        \App\Models\Setting::setValue('residency_verification_enabled', true);
+
+        // Delete the profile to test fresh logic
+        $user->residentProfile()->delete();
+        $user->unsetRelation('residentProfile');
+
+        // Now, isResidencyVerified should return false because we don't have a profile
+        $this->assertFalse($user->isResidencyVerified());
+
+        // Post should now fail with 403
+        $postResponse2 = $this->actingAs($user, 'sanctum')
+            ->postJson('/api/posts', [
+                'content' => 'Should fail now',
+            ]);
+        $postResponse2->assertStatus(403);
+    }
 }

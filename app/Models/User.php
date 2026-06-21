@@ -161,6 +161,32 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     }
 
     /**
+     * Check if the user has completed and verified their residency.
+     */
+    public function isResidencyVerified(): bool
+    {
+        if (!\App\Models\Setting::getValue('residency_verification_enabled', true)) {
+            return true;
+        }
+
+        return $this->residentProfile && ($this->residentProfile->is_verified || $this->residentProfile->status === 'approved');
+    }
+
+    /**
+     * Scope a query to only include verified residents.
+     */
+    public function scopeVerifiedResidents($query)
+    {
+        if (!\App\Models\Setting::getValue('residency_verification_enabled', true)) {
+            return $query->whereNotNull('email_verified_at');
+        }
+
+        return $query->whereHas('residentProfile', function ($q) {
+            $q->where('is_verified', true)->orWhere('status', 'approved');
+        });
+    }
+
+    /**
      * Custom serialization to map admin roles to status for the frontend.
      */
     public function toArray()
@@ -174,6 +200,21 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
             }
             if ($this->hasAnyRole(['superadmin', 'community-admin', 'marketplace-moderator', 'content-moderator'])) {
                 $array['status'] = 'admin';
+            }
+
+            // Dynamic override of resident profile verification if disabled globally
+            if (!\App\Models\Setting::getValue('residency_verification_enabled', true)) {
+                $array['residency_verification_enabled'] = false;
+                if (isset($array['resident_profile']) && $array['resident_profile'] !== null) {
+                    $array['resident_profile']['is_verified'] = true;
+                    $array['resident_profile']['status'] = 'approved';
+                }
+                if (isset($array['residentProfile']) && $array['residentProfile'] !== null) {
+                    $array['residentProfile']['is_verified'] = true;
+                    $array['residentProfile']['status'] = 'approved';
+                }
+            } else {
+                $array['residency_verification_enabled'] = true;
             }
         } catch (\Throwable $e) {
             // Fallback in case roles tables are not seeded yet or relation fails

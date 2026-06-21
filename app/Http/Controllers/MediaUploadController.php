@@ -21,7 +21,7 @@ class MediaUploadController extends Controller
     {
         // 1. Guard against unverified residents
         $user = $request->user();
-        if (!$user->residentProfile || !$user->residentProfile->is_verified) {
+        if (!$user->isResidencyVerified()) {
             return response()->json([
                 'message' => 'Action locked. Residency verification required to upload files.'
             ], 403);

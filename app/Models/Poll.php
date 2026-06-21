@@ -90,9 +90,7 @@ class Poll extends Model
     public function sendNotifications()
     {
         try {
-            $residents = User::whereHas('residentProfile', function ($query) {
-                $query->where('is_verified', true)->orWhere('status', 'approved');
-            })
+            $residents = User::verifiedResidents()
             ->where('id', '!=', $this->user_id) // don't notify creator
             ->get();
 

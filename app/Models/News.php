@@ -84,9 +84,7 @@ class News extends Model
     public function sendNotifications()
     {
         try {
-            $residents = User::whereHas('residentProfile', function ($query) {
-                $query->where('is_verified', true)->orWhere('status', 'approved');
-            })->get();
+            $residents = User::verifiedResidents()->get();
 
             foreach ($residents as $resident) {
                 $resident->notify(new \App\Notifications\GeneralNotification(

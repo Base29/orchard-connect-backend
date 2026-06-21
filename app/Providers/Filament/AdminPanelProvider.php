@@ -56,6 +56,7 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 AccountWidget::class,
                 \App\Filament\Widgets\MaintenanceModeWidget::class,
+                \App\Filament\Widgets\ResidencyVerificationToggleWidget::class,
                 \App\Filament\Widgets\StatsOverview::class,
                 \App\Filament\Widgets\UserGrowthChart::class,
                 \App\Filament\Widgets\PendingVerifications::class,

@@ -34,16 +34,12 @@ class MentionService
         if ($hasMentionAll) {
             // Get all verified residents (except author)
             $mentionedUsers = User::where('id', '!=', $author->id)
-                ->whereHas('residentProfile', function ($q) {
-                    $q->whereRaw('is_verified = true');
-                })
+                ->verifiedResidents()
                 ->get();
         } elseif (!empty($userIds)) {
             // Find specific users who are verified residents
             $mentionedUsers = User::whereIn('id', $userIds)
-                ->whereHas('residentProfile', function ($q) {
-                    $q->whereRaw('is_verified = true');
-                })
+                ->verifiedResidents()
                 ->get();
         } else {
             return;
