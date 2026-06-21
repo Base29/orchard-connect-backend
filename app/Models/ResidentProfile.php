@@ -14,6 +14,24 @@ class ResidentProfile extends Model
 {
     use HasFactory, HasUuids, LogsActivity;
 
+    protected static function booted()
+    {
+        static::updating(function ($profile) {
+            if ($profile->isDirty('status')) {
+                $newStatus = $profile->status;
+                if (($newStatus === 'approved' || $newStatus === 'rejected') && $profile->document_path && $profile->document_path !== 'purged') {
+                    try {
+                        $storage = app(\App\Services\S3PrivateStorageService::class);
+                        $storage->delete($profile->document_path);
+                    } catch (\Throwable $e) {
+                        \Illuminate\Support\Facades\Log::error("Failed to delete document for profile {$profile->id} on status update: " . $e->getMessage());
+                    }
+                    $profile->document_path = 'purged';
+                }
+            }
+        });
+    }
+
     public function getActivitylogOptions(): LogOptions
     {
         return LogOptions::defaults()

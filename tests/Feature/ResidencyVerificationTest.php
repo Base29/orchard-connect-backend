@@ -568,4 +568,90 @@ class ResidencyVerificationTest extends TestCase
         $this->assertEquals('moderation_verification', $data['metadata']['type']);
         $this->assertEquals($user->id, $data['metadata']['user_id']);
     }
+
+    /**
+     * Test residency document is deleted immediately when approved.
+     */
+    public function test_document_is_deleted_immediately_on_approval(): void
+    {
+        Storage::fake('local');
+        $user = User::factory()->create();
+        $filename = 'bill_test.pdf';
+        $path = "documents/{$user->id}/{$filename}";
+        Storage::disk('local')->put($path, 'dummy content');
+        Storage::disk('local')->assertExists($path);
+
+        $profile = ResidentProfile::create([
+            'user_id' => $user->id,
+            'phase' => 'Phase 1',
+            'block' => 'Block A',
+            'house_number' => '100',
+            'user_type' => 'owner',
+            'is_verified' => false,
+            'status' => 'pending',
+            'document_path' => 'local://' . $path,
+        ]);
+
+        // Verify it was created and exists
+        $this->assertEquals('local://' . $path, $profile->document_path);
+
+        // Approve the profile (update status to approved)
+        $profile->update([
+            'status' => 'approved',
+            'is_verified' => true,
+        ]);
+
+        // Assert file has been deleted from local storage
+        Storage::disk('local')->assertMissing($path);
+
+        // Assert document path is now 'purged' in the database
+        $this->assertDatabaseHas('resident_profiles', [
+            'id' => $profile->id,
+            'status' => 'approved',
+            'document_path' => 'purged',
+        ]);
+    }
+
+    /**
+     * Test residency document is deleted immediately when rejected.
+     */
+    public function test_document_is_deleted_immediately_on_rejection(): void
+    {
+        Storage::fake('local');
+        $user = User::factory()->create();
+        $filename = 'bill_test.pdf';
+        $path = "documents/{$user->id}/{$filename}";
+        Storage::disk('local')->put($path, 'dummy content');
+        Storage::disk('local')->assertExists($path);
+
+        $profile = ResidentProfile::create([
+            'user_id' => $user->id,
+            'phase' => 'Phase 1',
+            'block' => 'Block A',
+            'house_number' => '100',
+            'user_type' => 'owner',
+            'is_verified' => false,
+            'status' => 'pending',
+            'document_path' => 'local://' . $path,
+        ]);
+
+        // Verify it was created and exists
+        $this->assertEquals('local://' . $path, $profile->document_path);
+
+        // Reject the profile (update status to rejected)
+        $profile->update([
+            'status' => 'rejected',
+            'rejection_reason' => 'blurry_document',
+        ]);
+
+        // Assert file has been deleted from local storage
+        Storage::disk('local')->assertMissing($path);
+
+        // Assert document path is now 'purged' in the database
+        $this->assertDatabaseHas('resident_profiles', [
+            'id' => $profile->id,
+            'status' => 'rejected',
+            'document_path' => 'purged',
+        ]);
+    }
 }
