@@ -34,6 +34,7 @@ Route::middleware(\App\Http\Middleware\CheckMaintenanceMode::class)->prefix('aut
             'name' => 'required|string|max:255',
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
+            'policies_accepted' => 'required|accepted',
         ]);
 
         $user = User::create([
@@ -41,6 +42,8 @@ Route::middleware(\App\Http\Middleware\CheckMaintenanceMode::class)->prefix('aut
             'email' => $validated['email'],
             'password' => Hash::make($validated['password']),
             'status' => 'active',
+            'policies_accepted' => true,
+            'policies_accepted_at' => now(),
         ]);
 
         event(new \Illuminate\Auth\Events\Registered($user));
@@ -117,7 +120,7 @@ Route::get('/email/verify/{id}/{hash}', function (Request $request) {
 })->name('verification.verify');
 
 // Authenticated Resident Routes
-Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::class])->group(function () {
+Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::class, 'accepted.policies'])->group(function () {
     
     // User Session Profile Context
     Route::get('/user', function (Request $request) {
@@ -150,6 +153,19 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
             'user' => $user,
             'rejections_count' => $rejectionsCount,
             'is_locked' => $isLocked,
+        ]);
+    });
+
+    // Accept Platform Policies
+    Route::post('/policies/accept', function (Request $request) {
+        $user = $request->user();
+        $user->update([
+            'policies_accepted' => true,
+            'policies_accepted_at' => now(),
+        ]);
+        return response()->json([
+            'message' => 'Policies accepted successfully.',
+            'user' => $user->fresh(['residentProfile', 'roles']),
         ]);
     });
 

@@ -182,6 +182,7 @@ class EmailVerificationTest extends TestCase
             'email' => 'johndoe@example.com',
             'password' => 'password123',
             'password_confirmation' => 'password123',
+            'policies_accepted' => true,
         ]);
 
         $response->assertStatus(201);
@@ -212,6 +213,7 @@ class EmailVerificationTest extends TestCase
             'email' => 'johndoe@example.com',
             'password' => 'password123',
             'password_confirmation' => 'password123',
+            'policies_accepted' => true,
         ]);
 
         $response->assertStatus(201);

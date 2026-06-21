@@ -18,6 +18,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->trustProxies(at: '*');
         $middleware->alias([
             'verified.email' => \App\Http\Middleware\EnsureEmailIsVerified::class,
+            'accepted.policies' => \App\Http\Middleware\EnsurePoliciesAccepted::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

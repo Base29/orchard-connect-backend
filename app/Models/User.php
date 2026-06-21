@@ -47,6 +47,8 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         'avatar_url',
         'status',
         'email_verified_at',
+        'policies_accepted',
+        'policies_accepted_at',
     ];
 
     /**
@@ -69,6 +71,8 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'policies_accepted' => \App\Casts\PostgresSafeBoolean::class,
+            'policies_accepted_at' => 'datetime',
         ];
     }
 
