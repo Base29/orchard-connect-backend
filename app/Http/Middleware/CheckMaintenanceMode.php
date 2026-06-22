@@ -30,7 +30,12 @@ class CheckMaintenanceMode
                 return $next($request);
             }
 
-            // 3. Allow access to authenticated admins/moderators
+            // 3. Allow support ticket creation and tracking
+            if ($request->is('api/support/tickets') || $request->is('api/support/tickets/track/*')) {
+                return $next($request);
+            }
+
+            // 4. Allow access to authenticated admins/moderators
             // Note: Safely resolve the user without triggering session errors in stateless API routes.
             $user = null;
             try {
