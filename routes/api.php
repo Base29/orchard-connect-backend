@@ -122,6 +122,8 @@ Route::get('/email/verify/{id}/{hash}', function (Request $request) {
 // Authenticated Resident Routes
 Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::class, 'accepted.policies'])->group(function () {
     
+    Route::post('/admin/exchange-token', [\App\Http\Controllers\Admin\AdminAutoLoginController::class, 'exchangeToken']);
+
     // User Session Profile Context
     Route::get('/user', function (Request $request) {
         $user = $request->user()->load(['residentProfile', 'roles']);

@@ -50,6 +50,7 @@ class UserForm
                                     if ($user->hasRole('superadmin')) {
                                         return $query;
                                     }
+                                    $query->where('name', '!=', 'superadmin');
                                     if ($user->hasRole('community-admin')) {
                                         return $query->whereIn('name', ['content-moderator', 'marketplace-moderator']);
                                     }

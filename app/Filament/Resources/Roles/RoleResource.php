@@ -32,6 +32,18 @@ class RoleResource extends Resource
         return RolesTable::configure($table);
     }
 
+    public static function getEloquentQuery(): \Illuminate\Database\Eloquent\Builder
+    {
+        $query = parent::getEloquentQuery();
+        
+        $currentUser = auth()->user();
+        if ($currentUser && !$currentUser->hasRole('superadmin')) {
+            $query->where('name', '!=', 'superadmin');
+        }
+        
+        return $query;
+    }
+
     public static function getRelations(): array
     {
         return [
