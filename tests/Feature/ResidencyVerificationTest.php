@@ -554,6 +554,7 @@ class ResidencyVerificationTest extends TestCase
 
         $this->assertEquals(0, $exitCode);
         $this->assertStringContainsString('Starting residency verification documents purge...', $output);
+        $this->assertStringContainsString('Target S3 Bucket:', $output);
         $this->assertStringContainsString("Purging document for user {$approvedUser->id} (Status: approved): local://{$path1}", $output);
         $this->assertStringContainsString("Purging document for user {$rejectedUser->id} (Status: rejected): local://{$path2}", $output);
         $this->assertStringContainsString("Purging document for user {$missingFileUser->id} (Status: approved): local://{$path4}", $output);

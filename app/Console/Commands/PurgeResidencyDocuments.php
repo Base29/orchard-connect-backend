@@ -31,6 +31,13 @@ class PurgeResidencyDocuments extends Command
     {
         $this->info('Starting residency verification documents purge...');
 
+        $bucket = config('filesystems.disks.s3.bucket');
+        if (!empty($bucket)) {
+            $this->info("Target S3 Bucket: {$bucket}");
+        } else {
+            $this->info("Target S3 Bucket: Not configured");
+        }
+
         $profiles = ResidentProfile::whereIn('status', ['approved', 'rejected'])
             ->whereNotNull('document_path')
             ->where('document_path', '!=', 'purged')
@@ -102,6 +109,10 @@ class PurgeResidencyDocuments extends Command
             }
 
             // File exists, attempt deletion
+            if ($isS3 || (!$isLocal && !str_starts_with($path, 'local://'))) {
+                $bucket = config('filesystems.disks.s3.bucket');
+                $this->comment("Deleting from S3 bucket '{$bucket}': {$path}");
+            }
             $deleted = $storage->delete($path);
 
             if ($deleted) {
@@ -115,9 +126,76 @@ class PurgeResidencyDocuments extends Command
             }
         }
 
+        $this->info("Scanning storage for orphaned/unpurged residency documents...");
+
+        // 1. Scan Local Storage
+        try {
+            $localFiles = Storage::disk('local')->allFiles('documents');
+            foreach ($localFiles as $file) {
+                $userId = $this->extractUserId($file);
+                if ($userId) {
+                    $profile = ResidentProfile::where('user_id', $userId)->first();
+                    if (!$profile || in_array($profile->status, ['approved', 'rejected'])) {
+                        $this->comment("Purging orphaned local document for user {$userId}: local://{$file}");
+                        if (Storage::disk('local')->delete($file)) {
+                            if ($profile && $profile->document_path !== 'purged') {
+                                $profile->update(['document_path' => 'purged']);
+                            }
+                            $count++;
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable $e) {
+            $this->error("Failed to list/delete local files. Error: " . $e->getMessage());
+        }
+
+        // 2. Scan S3 Storage
+        $keyId = config('filesystems.disks.s3.key');
+        $bucket = config('filesystems.disks.s3.bucket');
+        if (!empty($keyId) && !empty($bucket)) {
+            try {
+                $s3Files = Storage::disk('s3')->allFiles('documents');
+                foreach ($s3Files as $file) {
+                    $userId = $this->extractUserId($file);
+                    if ($userId) {
+                        $profile = ResidentProfile::where('user_id', $userId)->first();
+                        if (!$profile || in_array($profile->status, ['approved', 'rejected'])) {
+                            $this->comment("Purging S3 document from bucket '{$bucket}' for user {$userId}: s3://{$file}");
+                            if (Storage::disk('s3')->delete($file)) {
+                                if ($profile && $profile->document_path !== 'purged') {
+                                    $profile->update(['document_path' => 'purged']);
+                                }
+                                $count++;
+                            }
+                        }
+                    }
+                }
+            } catch (\Throwable $e) {
+                $this->error("Failed to list/delete S3 files. Error: " . $e->getMessage());
+                Log::error("Purge command failed to scan/delete S3 documents. Error: " . $e->getMessage());
+            }
+        }
+
         $this->info("Purged {$count} residency verification documents successfully.");
         Log::info("Residency verification documents purge run completed. Purged count: {$count}.");
 
         return Command::SUCCESS;
+    }
+
+    /**
+     * Extract user UUID from file path.
+     */
+    private function extractUserId(string $path): ?string
+    {
+        $parts = explode('/', str_replace('\\', '/', $path));
+        // Check if it matches documents/{user_id}/{filename} or documents/demo/{user_id}/{filename}
+        if (count($parts) >= 3 && $parts[0] === 'documents') {
+            $potentialUserId = $parts[1] === 'demo' ? ($parts[2] ?? null) : $parts[1];
+            if ($potentialUserId && \Illuminate\Support\Str::isUuid($potentialUserId)) {
+                return $potentialUserId;
+            }
+        }
+        return null;
     }
 }
