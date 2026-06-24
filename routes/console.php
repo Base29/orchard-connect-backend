@@ -8,4 +8,4 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Schedule::command('app:purge-verified-documents')->monthly();
+Schedule::command('app:purge-residency-documents')->monthly();

@@ -473,6 +473,120 @@ class ResidencyVerificationTest extends TestCase
     }
 
     /**
+     * Test the Artisan command app:purge-residency-documents deletes files and updates db to 'purged'
+     * for both approved and rejected requests, while leaving pending requests intact.
+     */
+    public function test_purge_residency_documents_artisan_command_deletes_approved_and_rejected_files(): void
+    {
+        $approvedUser = User::factory()->create();
+        $rejectedUser = User::factory()->create();
+        $pendingUser = User::factory()->create();
+        $missingFileUser = User::factory()->create();
+
+        $filename1 = 'approved_bill.pdf';
+        $filename2 = 'rejected_bill.pdf';
+        $filename3 = 'pending_bill.pdf';
+        $filename4 = 'missing_bill.pdf';
+
+        $path1 = "documents/{$approvedUser->id}/{$filename1}";
+        $path2 = "documents/{$rejectedUser->id}/{$filename2}";
+        $path3 = "documents/{$pendingUser->id}/{$filename3}";
+        $path4 = "documents/{$missingFileUser->id}/{$filename4}";
+
+        // Write files to disk
+        Storage::disk('local')->put($path1, 'approved content');
+        Storage::disk('local')->put($path2, 'rejected content');
+        Storage::disk('local')->put($path3, 'pending content');
+        // Do NOT write file 4 (simulating missing file)
+
+        Storage::disk('local')->assertExists($path1);
+        Storage::disk('local')->assertExists($path2);
+        Storage::disk('local')->assertExists($path3);
+        Storage::disk('local')->assertMissing($path4);
+
+        $profileApproved = ResidentProfile::create([
+            'user_id' => $approvedUser->id,
+            'phase' => 'Phase 1',
+            'block' => 'Block A',
+            'house_number' => '100',
+            'user_type' => 'owner',
+            'is_verified' => true,
+            'status' => 'approved',
+            'document_path' => 'local://' . $path1,
+        ]);
+
+        $profileRejected = ResidentProfile::create([
+            'user_id' => $rejectedUser->id,
+            'phase' => 'Phase 1',
+            'block' => 'Block A',
+            'house_number' => '101',
+            'user_type' => 'owner',
+            'is_verified' => false,
+            'status' => 'rejected',
+            'document_path' => 'local://' . $path2,
+        ]);
+
+        $profilePending = ResidentProfile::create([
+            'user_id' => $pendingUser->id,
+            'phase' => 'Phase 1',
+            'block' => 'Block A',
+            'house_number' => '102',
+            'user_type' => 'owner',
+            'is_verified' => false,
+            'status' => 'pending',
+            'document_path' => 'local://' . $path3,
+        ]);
+
+        $profileMissing = ResidentProfile::create([
+            'user_id' => $missingFileUser->id,
+            'phase' => 'Phase 1',
+            'block' => 'Block A',
+            'house_number' => '103',
+            'user_type' => 'owner',
+            'is_verified' => true,
+            'status' => 'approved',
+            'document_path' => 'local://' . $path4,
+        ]);
+
+        // Run the purge Artisan command
+        $exitCode = \Illuminate\Support\Facades\Artisan::call('app:purge-residency-documents');
+        $output = \Illuminate\Support\Facades\Artisan::output();
+
+        $this->assertEquals(0, $exitCode);
+        $this->assertStringContainsString('Starting residency verification documents purge...', $output);
+        $this->assertStringContainsString("Purging document for user {$approvedUser->id} (Status: approved): local://{$path1}", $output);
+        $this->assertStringContainsString("Purging document for user {$rejectedUser->id} (Status: rejected): local://{$path2}", $output);
+        $this->assertStringContainsString("Purging document for user {$missingFileUser->id} (Status: approved): local://{$path4}", $output);
+        $this->assertStringContainsString('Document already missing from storage, marking as purged in DB.', $output);
+        $this->assertStringContainsString('Purged 3 residency verification documents successfully.', $output);
+
+        // Assert database updates
+        $this->assertDatabaseHas('resident_profiles', [
+            'id' => $profileApproved->id,
+            'document_path' => 'purged',
+        ]);
+        $this->assertDatabaseHas('resident_profiles', [
+            'id' => $profileRejected->id,
+            'document_path' => 'purged',
+        ]);
+        $this->assertDatabaseHas('resident_profiles', [
+            'id' => $profileMissing->id,
+            'document_path' => 'purged',
+        ]);
+
+        // Pending profile should not be purged
+        $this->assertDatabaseHas('resident_profiles', [
+            'id' => $profilePending->id,
+            'document_path' => 'local://' . $path3,
+        ]);
+
+        // Assert file deletions
+        Storage::disk('local')->assertMissing($path1);
+        Storage::disk('local')->assertMissing($path2);
+        Storage::disk('local')->assertExists($path3); // Pending still exists
+    }
+
+    /**
      * Test residency document upload uses S3 when configuration is present.
      */
     public function test_user_profile_document_upload_uses_s3_when_configured(): void
