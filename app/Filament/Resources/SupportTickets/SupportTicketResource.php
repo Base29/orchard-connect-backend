@@ -44,7 +44,7 @@ class SupportTicketResource extends Resource
             return 'Dispute Tickets';
         }
         if ($user->hasRole('community-admin')) {
-            return 'Security Tickets';
+            return 'Support Tickets';
         }
         return 'Support Tickets';
     }

@@ -15,7 +15,19 @@ class SupportTicketPolicy
      */
     public function viewAny(User $user): bool
     {
-        return $user->isActive() && $user->hasAnyRole(['superadmin', 'support-staff', 'community-admin', 'marketplace-moderator']);
+        if (!$user->isActive()) {
+            return false;
+        }
+
+        if ($user->hasRole('superadmin') || $user->hasRole('support-staff') || $user->hasRole('marketplace-moderator')) {
+            return true;
+        }
+
+        if ($user->hasRole('community-admin') && $user->can('manage-support-tickets')) {
+            return true;
+        }
+
+        return false;
     }
 
     /**
@@ -36,7 +48,7 @@ class SupportTicketPolicy
         }
 
         if ($user->hasRole('community-admin') && $ticket->category === 'security') {
-            return true;
+            return $user->can('manage-support-tickets');
         }
 
         if ($user->hasRole('marketplace-moderator') && $ticket->category === 'marketplace_dispute') {
