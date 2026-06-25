@@ -74,6 +74,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'moderate-polls',
             'verify-businesses',
             'override-moderation',
+            'create-news',
         ]);
 
         // Marketplace Moderator

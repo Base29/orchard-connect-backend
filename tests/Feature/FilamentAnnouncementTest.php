@@ -3,8 +3,10 @@
 namespace Tests\Feature;
 
 use App\Models\Announcement;
+use App\Models\News;
 use App\Models\User;
 use App\Filament\Resources\Announcements\Pages\EditAnnouncement;
+use App\Filament\Resources\News\Pages\EditNews;
 use Database\Seeders\RolesAndPermissionsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Livewire\Livewire;
@@ -78,6 +80,74 @@ class FilamentAnnouncementTest extends TestCase
         $this->assertDatabaseHas('announcements', [
             'id' => $announcement->id,
             'pinned' => true,
+        ]);
+    }
+
+    /**
+     * Test community admin can manage announcements.
+     */
+    public function test_community_admin_can_manage_announcements_in_filament(): void
+    {
+        $communityAdmin = User::factory()->create();
+        $communityAdmin->assignRole('community-admin');
+
+        // Create an announcement to edit
+        $announcement = Announcement::create([
+            'title' => 'Community Update',
+            'content' => 'This is a community announcement.',
+            'author_id' => $communityAdmin->id,
+            'category' => 'general',
+            'status' => 'published',
+            'pinned' => false,
+        ]);
+
+        // Test editing the announcement as community admin
+        $lw = Livewire::actingAs($communityAdmin)
+            ->test(EditAnnouncement::class, [
+                'record' => $announcement->id,
+            ]);
+
+        $lw->set('data.title', 'Updated Community Title')
+            ->call('save');
+
+        $lw->assertHasNoFormErrors();
+
+        $this->assertDatabaseHas('announcements', [
+            'id' => $announcement->id,
+            'title' => 'Updated Community Title',
+        ]);
+    }
+
+    /**
+     * Test community admin can manage news articles.
+     */
+    public function test_community_admin_can_manage_news_in_filament(): void
+    {
+        $communityAdmin = User::factory()->create();
+        $communityAdmin->assignRole('community-admin');
+
+        // Create a news article to edit
+        $news = News::create([
+            'title' => 'Community News Headline',
+            'content' => 'This is a community news content.',
+            'author_id' => $communityAdmin->id,
+            'status' => 'published',
+        ]);
+
+        // Test editing the news article as community admin
+        $lw = Livewire::actingAs($communityAdmin)
+            ->test(EditNews::class, [
+                'record' => $news->id,
+            ]);
+
+        $lw->set('data.title', 'Updated News Title')
+            ->call('save');
+
+        $lw->assertHasNoFormErrors();
+
+        $this->assertDatabaseHas('news', [
+            'id' => $news->id,
+            'title' => 'Updated News Title',
         ]);
     }
 }
