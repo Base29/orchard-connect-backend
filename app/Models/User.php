@@ -186,7 +186,7 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
         }
 
         return $query->whereHas('residentProfile', function ($q) {
-            $q->where('is_verified', true)->orWhere('status', 'approved');
+            $q->whereRaw('is_verified = TRUE')->orWhere('status', 'approved');
         });
     }
 

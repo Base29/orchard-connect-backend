@@ -64,7 +64,11 @@ class Announcement extends Model
             return asset('storage/' . $this->image_path);
         }
 
-        return Storage::disk('s3')->url($this->image_path);
+        try {
+            return Storage::disk('s3')->temporaryUrl($this->image_path, now()->addMinutes(60));
+        } catch (\Exception $e) {
+            return Storage::disk('s3')->url($this->image_path);
+        }
     }
 
     /**

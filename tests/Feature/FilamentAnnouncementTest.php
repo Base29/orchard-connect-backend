@@ -150,4 +150,29 @@ class FilamentAnnouncementTest extends TestCase
             'title' => 'Updated News Title',
         ]);
     }
+
+    /**
+     * Test community admin can create news articles.
+     */
+    public function test_community_admin_can_create_news_in_filament(): void
+    {
+        $communityAdmin = User::factory()->create();
+        $communityAdmin->assignRole('community-admin');
+
+        $lw = Livewire::actingAs($communityAdmin)
+            ->test(\App\Filament\Resources\News\Pages\CreateNews::class);
+
+        $lw->set('data.title', 'New Community News')
+            ->set('data.content', 'This is content for community news.')
+            ->set('data.status', 'published')
+            ->call('create');
+
+        $lw->assertHasNoFormErrors();
+
+        $this->assertDatabaseHas('news', [
+            'title' => 'New Community News',
+            'content' => '<p>This is content for community news.</p>',
+            'author_id' => $communityAdmin->id,
+        ]);
+    }
 }

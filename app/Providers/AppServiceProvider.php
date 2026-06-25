@@ -10,6 +10,8 @@ use App\Policies\RolePolicy;
 use App\Policies\PermissionPolicy;
 use App\Models\Announcement;
 use App\Policies\AnnouncementPolicy;
+use App\Models\News;
+use App\Policies\NewsPolicy;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -52,7 +54,7 @@ class AppServiceProvider extends ServiceProvider
         Gate::policy(\App\Models\ResidentProfile::class, \App\Policies\ResidentProfilePolicy::class);
         Gate::policy(\App\Models\Poll::class, \App\Policies\PollPolicy::class);
         Gate::policy(\App\Models\User::class, \App\Policies\UserPolicy::class);
-        Gate::policy(\App\Models\News::class, \App\Policies\NewsPolicy::class);
+        Gate::policy(News::class, NewsPolicy::class);
         Gate::policy(\App\Models\Post::class, \App\Policies\PostPolicy::class);
         Gate::policy(\App\Models\Comment::class, \App\Policies\CommentPolicy::class);
         Gate::policy(\App\Models\Listing::class, \App\Policies\ListingPolicy::class);

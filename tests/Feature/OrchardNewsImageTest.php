@@ -51,7 +51,7 @@ class OrchardNewsImageTest extends TestCase
         $this->assertCount(1, $data);
         $this->assertEquals('news/1/test_image.jpg', $data[0]['image_path']);
         $this->assertNotEmpty($data[0]['image_url']);
-        $this->assertStringEndsWith('news/1/test_image.jpg', $data[0]['image_url']);
+        $this->assertStringContainsString('news/1/test_image.jpg', $data[0]['image_url']);
         $this->assertStringStartsWith('http', $data[0]['image_url']);
     }
 
@@ -73,7 +73,7 @@ class OrchardNewsImageTest extends TestCase
             ->assertJsonPath('image_path', 'news/1/test_image.jpg');
 
         $imageUrl = $response->json('image_url');
-        $this->assertStringEndsWith('news/1/test_image.jpg', $imageUrl);
+        $this->assertStringContainsString('news/1/test_image.jpg', $imageUrl);
         $this->assertStringStartsWith('http', $imageUrl);
     }
 }
