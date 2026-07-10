@@ -47,4 +47,36 @@ class FilamentDirectoryListingTest extends TestCase
         // Verify that the policy allows the admin to viewAny and view DirectoryCategory
         $this->assertTrue($admin->can('viewAny', DirectoryCategory::class));
     }
+
+    /**
+     * Test admin can create directory category through Filament.
+     */
+    public function test_admin_can_create_directory_category_in_filament(): void
+    {
+        $admin = User::where('email', 'me@imfaisal.pro')->first();
+        if (!$admin) {
+            $admin = User::factory()->create();
+            $admin->assignRole('superadmin');
+        }
+
+        $lw = Livewire::actingAs($admin)
+            ->test(\App\Filament\Resources\DirectoryCategories\Pages\CreateDirectoryCategory::class);
+
+        $lw->set('data.name', 'Food & Drink')
+            ->set('data.slug', 'food-drink')
+            ->set('data.icon', 'heroicon-o-home')
+            ->call('create');
+
+        // Output errors if any
+        if ($lw->errors()) {
+            fwrite(STDERR, "Errors found:\n" . print_r($lw->errors(), true) . "\n");
+        }
+
+        $lw->assertHasNoFormErrors();
+
+        $this->assertDatabaseHas('directory_categories', [
+            'name' => 'Food & Drink',
+            'slug' => 'food-drink',
+        ]);
+    }
 }

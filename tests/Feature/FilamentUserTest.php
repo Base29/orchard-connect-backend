@@ -123,12 +123,12 @@ class FilamentUserTest extends TestCase
         // 2. Assert policy blocks community-admin from deleting superadmin
         $this->assertFalse($communityAdmin->can('delete', $superadmin));
 
-        // 3. Assert EditUser page is not accessible for superadmin record by community-admin
+        // 3. Assert EditUser page is not accessible for superadmin record by community-admin (throws ModelNotFoundException due to query scoping)
+        $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
         Livewire::actingAs($communityAdmin)
             ->test(EditUser::class, [
                 'record' => $superadmin->id,
-            ])
-            ->assertForbidden();
+            ]);
     }
 
     public function test_community_admin_can_edit_regular_user_and_assign_moderator_roles(): void
@@ -169,9 +169,9 @@ class FilamentUserTest extends TestCase
         $lw = Livewire::actingAs($communityAdmin)
             ->test(\App\Filament\Resources\Users\Pages\ListUsers::class);
 
-        // Verify table action visibility
+        // Verify table action visibility and superadmin absence
         $lw->assertTableActionVisible('ban', $user);
-        $lw->assertTableActionHidden('ban', $superadmin);
+        $lw->assertCanNotSeeTableRecords([$superadmin]);
 
         // Mount and run the ban action
         $lw->mountTableAction('ban', $user);
