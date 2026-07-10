@@ -41,4 +41,30 @@ class DirectoryListing extends Model
     {
         return $this->hasMany(DirectoryReview::class, 'directory_listing_id');
     }
+
+    /**
+     * Get the full URL for the business logo.
+     */
+    public function getLogoUrlAttribute($value): ?string
+    {
+        if (!$value) {
+            return null;
+        }
+
+        // If it's already a full URL
+        if (filter_var($value, FILTER_VALIDATE_URL)) {
+            return $value;
+        }
+
+        // If it starts with /storage/ or storage/
+        if (str_starts_with($value, '/storage/')) {
+            return asset(substr($value, 1));
+        }
+
+        if (str_starts_with($value, 'storage/')) {
+            return asset($value);
+        }
+
+        return asset('storage/' . $value);
+    }
 }
