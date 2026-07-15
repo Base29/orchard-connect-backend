@@ -35,7 +35,21 @@ Route::middleware(\App\Http\Middleware\CheckMaintenanceMode::class)->prefix('aut
             'email' => 'required|string|email|max:255|unique:users',
             'password' => 'required|string|min:8|confirmed',
             'policies_accepted' => 'required|accepted',
+            'invite_code' => 'nullable|string',
         ]);
+
+        $invitation = null;
+        if (!empty($validated['invite_code'])) {
+            $invitation = \App\Models\Invitation::where('code', $validated['invite_code'])
+                ->whereNull('registered_user_id')
+                ->first();
+
+            if (!$invitation || ($invitation->expires_at && $invitation->expires_at->isPast())) {
+                return response()->json([
+                    'message' => 'The provided invitation code is invalid, expired, or has already been used.'
+                ], 400);
+            }
+        }
 
         $user = User::create([
             'name' => $validated['name'],
@@ -45,6 +59,12 @@ Route::middleware(\App\Http\Middleware\CheckMaintenanceMode::class)->prefix('aut
             'policies_accepted' => true,
             'policies_accepted_at' => now(),
         ]);
+
+        if ($invitation) {
+            $invitation->update([
+                'registered_user_id' => $user->id,
+            ]);
+        }
 
         event(new \Illuminate\Auth\Events\Registered($user));
 
@@ -298,20 +318,36 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
 
         $residencyVerificationEnabled = (bool) \App\Models\Setting::getValue('residency_verification_enabled', true);
 
-        $profileData = [
-            'phase' => $validated['phase'],
-            'block' => $validated['block'],
-            'house_number' => $validated['house_number'],
-            'street_number' => $validated['street_number'] ?? null,
-            'user_type' => $validated['user_type'],
-            'is_verified' => !$residencyVerificationEnabled,
-            'status' => $residencyVerificationEnabled ? 'pending' : 'approved',
-            'verified_at' => $residencyVerificationEnabled ? null : now(),
-        ];
+        $invitation = \App\Models\Invitation::where('registered_user_id', $user->id)->first();
+
+        if ($invitation) {
+            $profileData = [
+                'phase' => $validated['phase'],
+                'block' => $validated['block'],
+                'house_number' => $validated['house_number'],
+                'street_number' => $validated['street_number'] ?? null,
+                'user_type' => $validated['user_type'],
+                'is_verified' => true,
+                'status' => 'approved',
+                'verified_at' => now(),
+                'verified_by' => $invitation->invited_by,
+            ];
+        } else {
+            $profileData = [
+                'phase' => $validated['phase'],
+                'block' => $validated['block'],
+                'house_number' => $validated['house_number'],
+                'street_number' => $validated['street_number'] ?? null,
+                'user_type' => $validated['user_type'],
+                'is_verified' => !$residencyVerificationEnabled,
+                'status' => $residencyVerificationEnabled ? 'pending' : 'approved',
+                'verified_at' => $residencyVerificationEnabled ? null : now(),
+            ];
+        }
 
         // 3. Upload verification document if provided
         $uploaded = false;
-        if ($request->hasFile('document')) {
+        if (!$invitation && $request->hasFile('document')) {
             $storage = app(\App\Services\S3PrivateStorageService::class);
             $file = $request->file('document');
             $fileName = 'bill_' . time() . '.' . $file->getClientOriginalExtension();
@@ -330,6 +366,22 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
             ['user_id' => $user->id],
             $profileData
         );
+
+        if ($invitation) {
+            \App\Models\ModerationLog::create([
+                'action' => 'verify_resident',
+                'target_type' => \App\Models\User::class,
+                'target_id' => $user->id,
+                'moderator_id' => $invitation->invited_by,
+                'reason' => 'Resident automatically verified via secure invitation link.',
+                'metadata' => json_encode([
+                    'invitation_id' => $invitation->id,
+                    'phase' => $profile->phase,
+                    'block' => $profile->block,
+                    'house_number' => $profile->house_number,
+                ]),
+            ]);
+        }
 
         // Notify admin staff only if document was uploaded
         if ($uploaded) {
@@ -1102,12 +1154,111 @@ Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::cl
 
     // Resident Support Tickets
     Route::get('/support/tickets', [\App\Http\Controllers\SupportTicketController::class, 'index']);
+
+    // Admin Invitation Routes
+    Route::post('/invitations', function (Request $request) {
+        $user = $request->user();
+        if (!$user->hasAnyRole(['superadmin', 'community-admin']) && !$user->can('verify-residents')) {
+            return response()->json(['message' => 'Unauthorized. Only administrators can generate invitation links.'], 403);
+        }
+
+        $invitation = \App\Models\Invitation::create([
+            'invited_by' => $user->id,
+            'expires_at' => now()->addDays(7), // Invitation valid for 7 days
+        ]);
+
+        return response()->json([
+            'code' => $invitation->code,
+            'expires_at' => $invitation->expires_at,
+            'invite_url' => config('app.frontend_url', 'http://localhost:3000') . '/invite/' . $invitation->code
+        ], 201);
+    });
 });
 
-// Public Support Ticket Routes
+// Public Support Ticket & Invitation Validation Routes
 Route::middleware(\App\Http\Middleware\CheckMaintenanceMode::class)->group(function () {
     Route::post('/support/tickets', [\App\Http\Controllers\SupportTicketController::class, 'store'])
         ->middleware('throttle:3,60');
     Route::get('/support/tickets/track/{tracking_id}', [\App\Http\Controllers\SupportTicketController::class, 'track']);
+
+    // Validate Invitation Code
+    Route::get('/invitations/validate/{code}', function ($code) {
+        $invitation = \App\Models\Invitation::where('code', $code)
+            ->whereNull('registered_user_id')
+            ->first();
+
+        if (!$invitation || ($invitation->expires_at && $invitation->expires_at->isPast())) {
+            return response()->json([
+                'valid' => false,
+                'message' => 'This invitation link is invalid, expired, or has already been used.'
+            ], 400);
+        }
+
+        return response()->json([
+            'valid' => true,
+            'message' => 'Invitation is valid.'
+        ]);
+    });
+});
+
+// Authenticated (No Policies restriction) Invitation Claim Route
+Route::middleware(['auth:sanctum', \App\Http\Middleware\CheckMaintenanceMode::class])->group(function () {
+    Route::post('/invitations/claim', function (Request $request) {
+        $validated = $request->validate([
+            'code' => 'required|string',
+        ]);
+
+        $invitation = \App\Models\Invitation::where('code', $validated['code'])
+            ->whereNull('registered_user_id')
+            ->first();
+
+        if (!$invitation || ($invitation->expires_at && $invitation->expires_at->isPast())) {
+            return response()->json([
+                'message' => 'This invitation link is invalid, expired, or has already been used.'
+            ], 400);
+        }
+
+        $user = $request->user();
+
+        if ($user->isResidencyVerified()) {
+            return response()->json([
+                'message' => 'You are already a verified resident.'
+            ], 400);
+        }
+
+        $invitation->update([
+            'registered_user_id' => $user->id,
+        ]);
+
+        // If the user already has a resident profile, auto-verify it immediately
+        if ($user->residentProfile) {
+            $user->residentProfile->update([
+                'is_verified' => true,
+                'status' => 'approved',
+                'verified_at' => now(),
+                'verified_by' => $invitation->invited_by,
+            ]);
+
+            \App\Models\ModerationLog::create([
+                'action' => 'verify_resident',
+                'target_type' => \App\Models\User::class,
+                'target_id' => $user->id,
+                'moderator_id' => $invitation->invited_by,
+                'reason' => 'Resident automatically verified upon claiming secure invitation link.',
+                'metadata' => json_encode([
+                    'invitation_id' => $invitation->id,
+                    'phase' => $user->residentProfile->phase,
+                    'block' => $user->residentProfile->block,
+                    'house_number' => $user->residentProfile->house_number,
+                    'street_number' => $user->residentProfile->street_number,
+                ]),
+            ]);
+        }
+
+        return response()->json([
+            'message' => 'Invitation successfully claimed.',
+            'invitation' => $invitation
+        ]);
+    });
 });
 

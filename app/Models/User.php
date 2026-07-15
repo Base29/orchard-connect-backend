@@ -109,6 +109,22 @@ class User extends Authenticatable implements FilamentUser, MustVerifyEmail
     }
 
     /**
+     * Relational Map: Invitations sent/created by this admin.
+     */
+    public function sentInvitations(): HasMany
+    {
+        return $this->hasMany(Invitation::class, 'invited_by');
+    }
+
+    /**
+     * Relational Map: Invitation received/used by this resident.
+     */
+    public function receivedInvitation(): HasOne
+    {
+        return $this->hasOne(Invitation::class, 'registered_user_id');
+    }
+
+    /**
      * Relational Map: Resident Polls
      */
     public function polls(): HasMany

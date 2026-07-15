@@ -112,6 +112,7 @@ class ActivityResource extends Resource
                     ->options([
                         'App\\Models\\User' => 'User',
                         'App\\Models\\ResidentProfile' => 'Resident Profile',
+                        'App\\Models\\Invitation' => 'Invitation',
                         'App\\Models\\Post' => 'Post',
                         'App\\Models\\Comment' => 'Comment',
                         'App\\Models\\Listing' => 'Marketplace Listing',
